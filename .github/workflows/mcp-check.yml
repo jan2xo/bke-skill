@@ -21,6 +21,26 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm test
       - run: npx wrangler deploy --dry-run --outdir /tmp/bke-mcp-build
+      - name: Export certified public release bundle for direct Cloudflare upload
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          import zlib from 'node:zlib';
+          const dir = '/tmp/bke-mcp-build';
+          const names = fs.readdirSync(dir).filter(n => n.endsWith('.js'));
+          if (names.length !== 1) throw new Error('Expected exactly one JavaScript bundle');
+          const raw = fs.readFileSync(path.join(dir, names[0]));
+          const digest = crypto.createHash('sha256').update(raw).digest('hex');
+          const zipped = zlib.gzipSync(raw, {level: 9, mtime: 0}).toString('base64');
+          console.log('BKE_RELEASE_NAME:' + names[0]);
+          console.log('BKE_RELEASE_SHA256:' + digest);
+          console.log('BKE_RELEASE_SIZE:' + raw.length);
+          for (let i=0; i<zipped.length; i+=3000)
+            console.log('BKE_RELEASE_PART:' + i + ':' + zipped.slice(i,i+3000));
+          console.log('BKE_RELEASE_COMPLETE:' + zipped.length);
+          NODE
       - name: MCP HTTP handshake
         run: |
           npx wrangler dev --local --ip 127.0.0.1 --port 8787 > /tmp/bke-mcp-dev.log 2>&1 &
