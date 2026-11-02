@@ -16,7 +16,7 @@ function createServer() {
   });
   server.registerTool('get_skill', {
     description: 'Read one BKE SKILL.md on main, optionally pinned to its listed Git blob SHA.',
-    inputSchema: {name: z.string(), blob_sha: z.string().optional()},
+    inputSchema: z.object({name: z.string(), blob_sha: z.string().optional()}),
   }, async ({name, blob_sha}) => {
     try {
       return {content: [{type: 'text', text: JSON.stringify(await getSkill(name, blob_sha))}]};
