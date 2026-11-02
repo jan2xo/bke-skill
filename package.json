@@ -1,0 +1,18 @@
+{
+  "name": "bke-skills-mcp",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.3.1",
+    "agents": "0.32.0",
+    "zod": "4.1.12"
+  },
+  "devDependencies": {
+    "wrangler": "4.148.0"
+  }
+}
