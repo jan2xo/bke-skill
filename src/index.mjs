@@ -6,7 +6,7 @@ import {getSkill, listSkills} from './catalog.mjs';
 function createServer() {
   const server = new McpServer({name: 'bke-skills', version: '0.1.0'});
   server.registerTool('list_skills', {
-    description: 'List public BKE skills merged into GitHub main with immutable blob SHAs.',
+    description: 'List public BKE skills in the deployed GitHub-source release with immutable blob SHAs.',
   }, async () => {
     try {
       return {content: [{type: 'text', text: JSON.stringify(await listSkills())}]};
@@ -15,7 +15,7 @@ function createServer() {
     }
   });
   server.registerTool('get_skill', {
-    description: 'Read one BKE SKILL.md on main, optionally pinned to its listed Git blob SHA.',
+    description: 'Read one BKE SKILL.md in this release, optionally pinned to its listed Git blob SHA.',
     inputSchema: z.object({name: z.string(), blob_sha: z.string().optional()}),
   }, async ({name, blob_sha}) => {
     try {
