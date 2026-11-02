@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
 
 const endpoint = 'http://127.0.0.1:8787/mcp';
 async function rpc(method, params, id) {
@@ -28,7 +29,8 @@ const init = await rpc('initialize', {
 assert.ok(init.protocolVersion);
 const listing = await rpc('tools/list', {}, 2);
 assert.deepEqual(listing.tools.map(x => x.name).sort(), ['get_skill', 'list_skills']);
-const expectedBlob = '099af3c9a31c53fee95eedb2a8a27b4a81f52a9d';
+const expectedBlob = execFileSync('git', ['rev-parse', 'HEAD:skills/bke-lean-engineering/SKILL.md'],
+  {encoding: 'utf8'}).trim();
 const listed = await rpc('tools/call', {name:'list_skills',arguments:{}}, 3);
 assert.ok(!listed.isError, JSON.stringify(listed));
 const inventory = JSON.parse(listed.content[0].text);
