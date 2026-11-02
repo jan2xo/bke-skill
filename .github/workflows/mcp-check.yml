@@ -36,3 +36,38 @@ jobs:
             cat /tmp/bke-mcp-dev.log
             exit 1
           fi
+      - name: Checkout exact owner-authorized release main
+        uses: actions/checkout@v4
+        with:
+          ref: 99ea656889e8a06abb639bbfbc692eca4694dffc
+          path: release-source
+          persist-credentials: false
+      - name: Verify release source revision before bundle
+        run: |
+          test "$(git -C release-source rev-parse HEAD)" = "99ea656889e8a06abb639bbfbc692eca4694dffc"
+          test "$(git -C release-source status --porcelain)" = ""
+      - name: Build and export SHA-256 verified immutable release artifact
+        working-directory: release-source
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build:catalog
+          npx wrangler deploy --dry-run --outdir /tmp/bke-skills-authorized-release
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          import zlib from 'node:zlib';
+          const dir='/tmp/bke-skills-authorized-release';
+          const files=fs.readdirSync(dir).filter(f=>f.endsWith('.js'));
+          if(files.length!==1)throw Error('Expected one compiled Worker module');
+          const raw=fs.readFileSync(path.join(dir,files[0]));
+          if(!raw.includes(Buffer.from('99ea656889e8a06abb639bbfbc692eca4694dffc')))throw Error('Incorrect embedded source commit');
+          const hash=crypto.createHash('sha256').update(raw).digest('hex');
+          const encoded=zlib.gzipSync(raw,{level:9,mtime:0}).toString('base64');
+          console.log('BKE_RELEASE_COMMIT:99ea656889e8a06abb639bbfbc692eca4694dffc');
+          console.log('BKE_RELEASE_FILE:'+files[0]);
+          console.log('BKE_RELEASE_SHA256:'+hash);
+          console.log('BKE_RELEASE_BYTES:'+raw.length);
+          for(let n=0;n<encoded.length;n+=3000)console.log('BKE_RELEASE_PART:'+n+':'+encoded.slice(n,n+3000));
+          console.log('BKE_RELEASE_DONE:'+encoded.length);
+          NODE
