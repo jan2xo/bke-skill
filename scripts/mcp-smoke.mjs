@@ -41,6 +41,9 @@ const found = await rpc('tools/call', {
 assert.ok(!found.isError, JSON.stringify(found));
 const skill = JSON.parse(found.content[0].text);
 assert.equal(skill.blob_sha, expectedBlob);
-assert.ok(skill.content.includes('# BKE Lean Engineering'));
+assert.equal(typeof skill.markdown, 'string');
+assert.ok(skill.markdown.includes('# BKE Lean Engineering'));
+assert.ok(!Object.hasOwn(skill, 'content'), 'avoid nested JSON content field broken by ChatGPT');
+assert.deepEqual(found.structuredContent, skill, 'MCP structuredContent must mirror text fallback');
 console.log('MCP tool discovery and actual GitHub-backed skill retrieval: PASS');
 
