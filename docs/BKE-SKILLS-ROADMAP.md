@@ -2,7 +2,7 @@
 
 This is the agreed capability map and milestone checklist for BKE Skills. Root [bke.md](../bke.md), explicit owner decisions, and live GitHub PR/CI/release state govern execution. A candidate listed here is not an authorized implementation task.
 
-**Snapshot verified: 3 November 2026, Asia/Manila.** Main was `69aa1f50f0e6ee266b41f3aec5a84674e4239f21`; the connected production catalog returned tree `3885de10fd28589bbcd17d7c4872c74995c20791` with two skills. Both pinned `get_skill` calls returned full Markdown. The two specialist additions are in [open PR #17](https://github.com/jan2xo/bke-skill/pull/17), not merged or published at this snapshot.
+**Published state verified: 3 November 2026, Asia/Manila.** [PR #17](https://github.com/jan2xo/bke-skill/pull/17) is merged. Published source is `a12eeef544ffdde6184ad3c68e66f4ae0061fb7e`, tree `63f8324e4e9a8a6d11df9411703efca931c91492`. The connected production catalog lists all four skills; every pinned `get_skill` returned full Markdown matching that canonical source. [Release evidence and completed checklist](https://github.com/jan2xo/bke-skill/pull/18#issuecomment-6586188924) are in temporary PR #18, closed without merge.
 
 Checked items below describe the specific completed milestone, not completion of the whole product. Current PR heads, required CI, reviews, merge and live publication must be rechecked in GitHub; this document is not a per-push execution ledger.
 
@@ -12,8 +12,8 @@ Checked items below describe the specific completed milestone, not completion of
 |---|---|---|
 | [bke-lean-engineering](../skills/bke-lean-engineering/SKILL.md) | Authorized scope, reuse, minimum complete change and verification, completion boundaries | On main and retrieved through the live MCP at blob `93af0e8cb0f21bb460fcd18c9ccf85c30630aecd` |
 | [bke-owner-handoff](../skills/bke-owner-handoff/SKILL.md) | Meaningful checkpoints, precise blockers, necessary owner decisions and truthful handoffs | On main and retrieved through the live MCP at blob `f48f576ba0cf2e898fa3aa691da799118c69de0f` |
-| [bke-security-review](../skills/bke-security-review/SKILL.md) | Relevant trust boundaries, misuse/failure paths, material findings and review provenance | Implemented in PR #17; source merge and live publication pending |
-| [bke-test-certification](../skills/bke-test-certification/SKILL.md) | Actual CI execution, interface proof, evidence/artifact integrity and acceptance boundaries | Implemented in PR #17; source merge and live publication pending |
+| [bke-security-review](../skills/bke-security-review/SKILL.md) | Relevant trust boundaries, misuse/failure paths, material findings and review provenance | On main and retrieved through the live MCP at blob `ced8cf49f5c974f435d0febecf56b8f9022eeac1` |
+| [bke-test-certification](../skills/bke-test-certification/SKILL.md) | Actual CI execution, interface proof, evidence/artifact integrity and acceptance boundaries | On main and retrieved through the live MCP at blob `ce5dafb51ea632e967b7d3f5091cd642d36757ed` |
 
 A retrieved skill supplies guidance. It does not grant authority, enforce agent behavior, create an independent reviewer, render an interface, or prove a native/production outcome.
 
@@ -65,13 +65,13 @@ The [gateway instructions](../integrations/chatgpt/bke-skills/skills/bke-skills-
 - [x] Extend local HTTP MCP smoke to verify the actual catalog and pinned full-text/tree/blob retrieval for all four skills.
 - [x] Initial implementation head `3e7d1da993ce812630c0c8da2f477cad2ab33d1a` passed [CI 41503682530](https://github.com/jan2xo/bke-skill/actions/runs/41503682530): 5/5 tests, dry-run and all-four-skill local MCP retrieval.
 - [x] That initial implementation received an attributed fresh-context [ACCEPT_SOURCE_ONLY review](https://github.com/jan2xo/bke-skill/pull/17#pullrequestreview-5741658992), including three bounded behavioral scenarios.
-- [ ] Merge the specialist source PR under explicit owner authority after required proof/review for its actual current head.
-- [ ] Obtain distinct owner authorization for publication of the precise accepted canonical source to the existing Worker.
-- [ ] Complete the release runbook with fresh source, bundle-integrity, provider and rollback evidence.
-- [ ] Verify the production/native-client catalog lists four skills and pinned `get_skill` returns the exact full content of each new skill.
-- [ ] Record publication evidence and update this inventory to published.
+- [x] Merge specialist source through owner-authorized, SHA-locked PR #17 after final-head CI/review; canonical source `a12eeef544ffdde6184ad3c68e66f4ae0061fb7e`.
+- [x] Obtain explicit owner GO and release-runbook authorization for publication of the resolved canonical source to the existing Worker.
+- [x] Complete the runbook with fresh source/bundle/provider evidence: version `3545ac53-0ddf-476f-8b91-fa09af1ff412` at 100%, previous rollback version retained; see [release ledger](https://github.com/jan2xo/bke-skill/pull/18#issuecomment-6586188924).
+- [x] Verify the production/native-client catalog lists four skills and each pinned `get_skill` returns full Markdown exactly matching canonical GitHub.
+- [x] Record publication evidence and update the inventory to published.
 
-The initial CI/review links prove their pinned implementation head. They do not automatically certify a later PR head. Documentation changes and renewed current-head CI/review are tracked in PR #17. Sub-agent review means a fresh context that did not implement the candidate; the publisher account was also the PR author, so the COMMENT verdict is not separate-account formal approval.
+The initial CI/review links prove their pinned implementation head. They do not automatically certify a later PR head. The final source head `80fb21595baba2c9f77bca1e720815629f0d5ba4` passed [CI 41504874117](https://github.com/jan2xo/bke-skill/actions/runs/41504874117) and [independent-context review](https://github.com/jan2xo/bke-skill/pull/17#pullrequestreview-5741751014) before merge. The release independently built and tested the exact merged canonical source; this publication-status update changes no skill or runtime bytes. Sub-agent review means a fresh context that did not implement the candidate; the publisher account was also the PR author, so the COMMENT verdict is not separate-account formal approval.
 
 The local skill-creator validator could not start because PyYAML was unavailable. CI's existing builder checked names/frontmatter/source identity and the independent reviewer inspected YAML and activation. This is not a claim that the unavailable validator ran. Three scenarios demonstrate bounded application, not universal agent compliance.
 
