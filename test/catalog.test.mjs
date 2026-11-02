@@ -35,7 +35,9 @@ test('getSkill returns full content without any request-time network fetch', asy
   try {
     const skill = await getSkill(knownName, expected.blob_sha);
     assert.equal(skill.blob_sha, expected.blob_sha);
-    assert.ok(skill.content.includes('# BKE Lean Engineering'));
+    assert.equal(Object.hasOwn(skill, 'content'), false);
+    assert.ok(skill.skill_text.includes('# BKE Lean Engineering'));
+    assert.ok(skill.skill_text.length > 1000);
   } finally { globalThis.fetch = original; }
 });
 
