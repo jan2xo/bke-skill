@@ -1,51 +1,73 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+import {mkdtempSync, mkdirSync, writeFileSync, rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
 import {getSkill, listSkills} from '../src/catalog.mjs';
+import {buildSnapshot} from '../scripts/build-catalog.mjs';
 
-const sha = 'a'.repeat(40), treeSha = 'b'.repeat(40);
-const skillContent = '---\nname: bke-lean-engineering\n---\n# Lean\n';
-const entry = {path:'skills/bke-lean-engineering/SKILL.md', type:'blob', sha,
-  size:new TextEncoder().encode(skillContent).length};
-const inventory = {sha:treeSha, truncated:false, tree:[entry,
-  {path:'bke.md',type:'blob',sha:'c'.repeat(40),size:200}]};
-const blob = {sha, size:entry.size, encoding:'base64',
-  content:Buffer.from(skillContent).toString('base64')};
-function mock({tree=inventory, value=blob, status=200}={}) {
-  const calls=[];
-  const fetcher=async (url, options)=> {
-    calls.push({url, options});
-    return {ok:status===200,status,json:async()=>url.includes('/git/blobs/')?value:tree};
-  };
-  return {fetcher,calls};
+const knownName = 'bke-lean-engineering';
+function fixture(t) {
+  const root = mkdtempSync(path.join(tmpdir(), 'bke-skills-fixture-'));
+  t.after(() => rmSync(root, {recursive:true,force:true}));
+  mkdirSync(path.join(root, 'skills', 'first'), {recursive:true});
+  writeFileSync(path.join(root, 'skills', 'first', 'SKILL.md'),
+    '---\nname: first\n---\n# First\n');
+  execFileSync('git', ['init','-q'], {cwd:root});
+  execFileSync('git', ['add','.'], {cwd:root});
+  execFileSync('git', ['-c','user.name=Test','-c','user.email=test@example.invalid',
+    'commit','-qm','fixture'], {cwd:root});
+  return root;
 }
 
-test('list only main SKILL.md paths and expose pinned Git blob SHA',async()=>{
-  const x=mock();const list=await listSkills(x.fetcher);
-  assert.equal(list.tree_sha,treeSha);
-  assert.deepEqual(list.skills.map(v=>v.name),['bke-lean-engineering']);
-  assert.equal(list.skills[0].blob_sha,sha);
-  assert.equal(x.calls.length,1);
-  assert.equal(x.calls[0].options.method,'GET');
+test('catalog lists committed skills with Git SHA metadata, not content', async () => {
+  const catalog = await listSkills();
+  assert.match(catalog.tree_sha, /^[a-f0-9]{40}$/);
+  assert.ok(catalog.skills.some(x => x.name === knownName));
+  assert.equal(catalog.skills.find(x => x.name === knownName).content, undefined);
 });
-test('get returns verified content and performs GET requests only',async()=>{
-  const x=mock();const s=await getSkill('bke-lean-engineering',sha,x.fetcher);
-  assert.equal(s.content,skillContent);
-  assert.equal(s.blob_sha,sha);
-  assert.equal(x.calls.length,2);
-  assert.ok(x.calls.every(c=>c.options.method==='GET'));
+
+test('getSkill returns full content without any request-time network fetch', async () => {
+  const expected = (await listSkills()).skills.find(x => x.name === knownName);
+  const original = globalThis.fetch;
+  globalThis.fetch = () => { throw new Error('Unexpected network access'); };
+  try {
+    const skill = await getSkill(knownName, expected.blob_sha);
+    assert.equal(skill.blob_sha, expected.blob_sha);
+    assert.ok(skill.content.includes('# BKE Lean Engineering'));
+  } finally { globalThis.fetch = original; }
 });
-test('missing/unmerged skill and invalid path do not fetch arbitrary content',async()=>{
-  const x=mock();await assert.rejects(()=>getSkill('../bke.md',undefined,x.fetcher),/Invalid/);
-  await assert.rejects(()=>getSkill('not-yet-merged',undefined,x.fetcher),/not found/);
-  assert.equal(x.calls.length,1);
+
+test('rejects invalid names, missing skills and stale revisions', async () => {
+  await assert.rejects(() => getSkill('../secret'), /Invalid/);
+  await assert.rejects(() => getSkill(knownName, 'bad'), /Invalid/);
+  await assert.rejects(() => getSkill('nonexistent-skill'), /not found/);
+  await assert.rejects(() => getSkill(knownName, 'f'.repeat(40)), /changed/);
 });
-test('stale version, truncated inventory and malformed metadata fail closed',async()=>{
-  const x=mock();await assert.rejects(()=>getSkill('bke-lean-engineering','d'.repeat(40),x.fetcher),/changed/);
-  await assert.rejects(()=>listSkills(mock({tree:{...inventory,truncated:true}}).fetcher),/incomplete/);
-  await assert.rejects(()=>listSkills(mock({tree:{...inventory,tree:[{...entry,sha:'bad'}]}}).fetcher),/Invalid/);
+
+test('build snapshot uses real Git blobs and rejects uncommitted changes', (t) => {
+  const root = fixture(t);
+  const first = buildSnapshot(root);
+  const expected = execFileSync('git', ['rev-parse','HEAD:skills/first/SKILL.md'],
+    {cwd:root,encoding:'utf8'}).trim();
+  assert.equal(first.skills[0].blob_sha, expected);
+  writeFileSync(path.join(root,'skills','first','SKILL.md'),
+    '---\nname: first\n---\n# Modified\n');
+  assert.throws(() => buildSnapshot(root), /differ/);
 });
-test('failed GitHub requests or mismatched blob SHA never become instructions',async()=>{
-  await assert.rejects(()=>listSkills(mock({status:403}).fetcher),/403/);
-  await assert.rejects(()=>getSkill('bke-lean-engineering',undefined,
-    mock({value:{...blob,sha:'d'.repeat(40)}}).fetcher),/verify/);
+
+test('build picks up new committed skills and fails closed for bad content', (t) => {
+  const root = fixture(t);
+  const second = path.join(root,'skills','second');
+  mkdirSync(second);
+  writeFileSync(path.join(second,'SKILL.md'),'---\nname: second\n---\n# Second\n');
+  execFileSync('git', ['add','.'], {cwd:root});
+  execFileSync('git', ['-c','user.name=Test','-c','user.email=test@example.invalid',
+    'commit','-qm','added'], {cwd:root});
+  assert.deepEqual(buildSnapshot(root).skills.map(s=>s.name), ['first','second']);
+  writeFileSync(path.join(second,'SKILL.md'),'---\nname: wrong\n---\n# Wrong\n');
+  assert.throws(() => buildSnapshot(root), /frontmatter/);
+  writeFileSync(path.join(second,'SKILL.md'),'x'.repeat(65537));
+  assert.throws(() => buildSnapshot(root), /maximum size/);
 });
