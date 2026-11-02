@@ -28,4 +28,17 @@ const init = await rpc('initialize', {
 assert.ok(init.protocolVersion);
 const listing = await rpc('tools/list', {}, 2);
 assert.deepEqual(listing.tools.map(x => x.name).sort(), ['get_skill', 'list_skills']);
-console.log('MCP initialize and tools/list: PASS');
+const expectedBlob = '099af3c9a31c53fee95eedb2a8a27b4a81f52a9d';
+const listed = await rpc('tools/call', {name:'list_skills',arguments:{}}, 3);
+assert.ok(!listed.isError, JSON.stringify(listed));
+const inventory = JSON.parse(listed.content[0].text);
+assert.equal(inventory.skills.find(s => s.name === 'bke-lean-engineering')?.blob_sha, expectedBlob);
+const found = await rpc('tools/call', {
+  name:'get_skill',arguments:{name:'bke-lean-engineering',blob_sha:expectedBlob},
+}, 4);
+assert.ok(!found.isError, JSON.stringify(found));
+const skill = JSON.parse(found.content[0].text);
+assert.equal(skill.blob_sha, expectedBlob);
+assert.ok(skill.content.includes('# BKE Lean Engineering'));
+console.log('MCP tool discovery and actual GitHub-backed skill retrieval: PASS');
+
