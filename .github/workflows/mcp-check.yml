@@ -36,3 +36,53 @@ jobs:
             cat /tmp/bke-mcp-dev.log
             exit 1
           fi
+
+      - name: Checkout owner-authorized EXACT merged source independent of release PR
+        uses: actions/checkout@v4
+        with:
+          ref: 69aa1f50f0e6ee266b41f3aec5a84674e4239f21
+          path: release-source
+          persist-credentials: false
+      - name: Verify clean authorized source and both exact skill blobs
+        run: |
+          test "$(git -C release-source rev-parse HEAD)" = "69aa1f50f0e6ee266b41f3aec5a84674e4239f21"
+          test "$(git -C release-source status --porcelain)" = ""
+          test "$(git -C release-source rev-parse HEAD:skills/bke-lean-engineering/SKILL.md)" = "93af0e8cb0f21bb460fcd18c9ccf85c30630aecd"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-owner-handoff/SKILL.md)" = "f48f576ba0cf2e898fa3aa691da799118c69de0f"
+          grep -q '"workers_dev": true' release-source/wrangler.jsonc
+      - name: Certify and export exact-main immutable two-skill Worker bundle (NO deployment)
+        working-directory: release-source
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build:catalog
+          npx wrangler deploy --dry-run --outdir /tmp/bke-skills-lean-upgrade-release
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          import zlib from 'node:zlib';
+          const source='69aa1f50f0e6ee266b41f3aec5a84674e4239f21';
+          const lean='93af0e8cb0f21bb460fcd18c9ccf85c30630aecd';
+          const owner='f48f576ba0cf2e898fa3aa691da799118c69de0f';
+          const snap=await import('./src/catalog.snapshot.mjs');
+          const snapshot=snap.snapshot;
+          if(snapshot.source_commit!==source || snapshot.skills.length!==2 ||
+             snapshot.skills.find(s=>s.name==='bke-lean-engineering')?.blob_sha!==lean ||
+             snapshot.skills.find(s=>s.name==='bke-owner-handoff')?.blob_sha!==owner)
+             throw Error('Source / expected skill snapshot mismatch');
+          const dir='/tmp/bke-skills-lean-upgrade-release';
+          const files=fs.readdirSync(dir).filter(f=>f.endsWith('.js'));
+          if(files.length!==1) throw Error('Expected precisely one compiled Worker JavaScript module');
+          const data=fs.readFileSync(path.join(dir,files[0]));
+          for(const needle of [source,lean,owner])
+            if(!data.includes(Buffer.from(needle)))throw Error('Compiled Worker lacks exact source identity');
+          const digest=crypto.createHash('sha256').update(data).digest('hex');
+          const gz=zlib.gzipSync(data,{level:9,mtime:0}).toString('base64');
+          console.log('BKE_RELEASE_COMMIT:'+source);
+          console.log('BKE_RELEASE_NAME:'+files[0]);
+          console.log('BKE_RELEASE_SHA256:'+digest);
+          console.log('BKE_RELEASE_BYTES:'+data.length);
+          for(let n=0;n<gz.length;n+=3000)console.log('BKE_RELEASE_PART:'+n+':'+gz.slice(n,n+3000));
+          console.log('BKE_RELEASE_COMPLETE:'+gz.length);
+          NODE
