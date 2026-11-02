@@ -42,6 +42,10 @@ jobs:
           ref: c0d89fbd4bd0d8b5c9d49daf8b4101b08f13a9cd
           path: authorized-release
           persist-credentials: false
+      - name: Verify second checkout is the exact authorized source
+        run: |
+          test "$(git -C authorized-release rev-parse HEAD)" = "c0d89fbd4bd0d8b5c9d49daf8b4101b08f13a9cd"
+          test "$(git -C authorized-release status --porcelain)" = ""
       - name: Certify and export exact-source Cloudflare Worker bundle
         working-directory: authorized-release
         run: |
