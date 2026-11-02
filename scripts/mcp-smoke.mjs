@@ -35,30 +35,34 @@ const init = await rpc('initialize', {
 assert.ok(init.protocolVersion);
 const listing = await rpc('tools/list', {}, 2);
 assert.deepEqual(listing.tools.map(x => x.name).sort(), ['get_skill', 'list_skills']);
-const expectedBlob = execFileSync('git', ['rev-parse', 'HEAD:skills/bke-lean-engineering/SKILL.md'],
-  {encoding: 'utf8'}).trim();
 const listed = await rpc('tools/call', {name:'list_skills',arguments:{}}, 3);
 assert.ok(!listed.isError, JSON.stringify(listed));
 const inventory = JSON.parse(listed.content[0].text);
-assert.equal(inventory.skills.find(s => s.name === 'bke-lean-engineering')?.blob_sha, expectedBlob);
-const ownerBlob = execFileSync('git', ['rev-parse', 'HEAD:skills/bke-owner-handoff/SKILL.md'],
+const expectedNames = ['bke-lean-engineering', 'bke-owner-handoff',
+  'bke-security-review', 'bke-test-certification'];
+assert.deepEqual(inventory.skills.map(s => s.name).sort(), expectedNames);
+const expectedTree = execFileSync('git', ['rev-parse', 'HEAD^{tree}'],
   {encoding: 'utf8'}).trim();
-assert.equal(inventory.skills.find(s => s.name === 'bke-owner-handoff')?.blob_sha, ownerBlob);
-const found = await rpc('tools/call', {
-  name:'get_skill',arguments:{name:'bke-lean-engineering',blob_sha:expectedBlob},
-}, 4);
-assert.ok(!found.isError, JSON.stringify(found));
-const skill = JSON.parse(found.content[0].text);
-assert.equal(skill.blob_sha, expectedBlob);
-assert.equal(Object.hasOwn(skill, 'content'), false);
-assert.ok(skill.skill_text.includes('# BKE Lean Engineering'));
-assert.ok(skill.skill_text.length > 1000);
-const ownerResult = await rpc('tools/call', {
-  name:'get_skill',arguments:{name:'bke-owner-handoff',blob_sha:ownerBlob},
-}, 5);
-assert.ok(!ownerResult.isError, JSON.stringify(ownerResult));
-const ownerSkill = JSON.parse(ownerResult.content[0].text);
-assert.equal(ownerSkill.blob_sha, ownerBlob);
-assert.ok(ownerSkill.skill_text.includes('## 4. Intelligent UI behavior'));
+assert.equal(inventory.tree_sha, expectedTree);
+let requestId = 4;
+for (const name of expectedNames) {
+  const path = 'skills/' + name + '/SKILL.md';
+  const expectedBlob = execFileSync('git', ['rev-parse', 'HEAD:' + path],
+    {encoding: 'utf8'}).trim();
+  const expectedText = execFileSync('git', ['show', 'HEAD:' + path], {encoding: 'utf8'});
+  const metadata = inventory.skills.find(s => s.name === name);
+  assert.equal(metadata.blob_sha, expectedBlob);
+  assert.equal(metadata.path, path);
+  const found = await rpc('tools/call', {
+    name:'get_skill', arguments:{name, blob_sha:expectedBlob},
+  }, requestId++);
+  assert.ok(!found.isError, JSON.stringify(found));
+  const skill = JSON.parse(found.content[0].text);
+  assert.equal(skill.name, name);
+  assert.equal(skill.blob_sha, expectedBlob);
+  assert.equal(skill.tree_sha, expectedTree);
+  assert.equal(Object.hasOwn(skill, 'content'), false);
+  assert.equal(skill.skill_text, expectedText);
+  console.log('Pinned MCP retrieval matches committed bytes: ' + name);
+}
 console.log('MCP tool discovery and actual GitHub-backed skill retrieval: PASS');
-

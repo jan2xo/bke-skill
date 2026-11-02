@@ -28,16 +28,25 @@ test('catalog lists committed skills with Git SHA metadata, not content', async 
   assert.equal(catalog.skills.find(x => x.name === knownName).content, undefined);
 });
 
-test('getSkill returns full content without any request-time network fetch', async () => {
-  const expected = (await listSkills()).skills.find(x => x.name === knownName);
+test('all four published skills return committed bytes without request-time network fetch', async () => {
+  const catalog = await listSkills();
+  const expectedNames = ['bke-lean-engineering', 'bke-owner-handoff',
+    'bke-security-review', 'bke-test-certification'];
+  assert.deepEqual(catalog.skills.map(s => s.name).sort(), expectedNames);
   const original = globalThis.fetch;
   globalThis.fetch = () => { throw new Error('Unexpected network access'); };
   try {
-    const skill = await getSkill(knownName, expected.blob_sha);
-    assert.equal(skill.blob_sha, expected.blob_sha);
-    assert.equal(Object.hasOwn(skill, 'content'), false);
-    assert.ok(skill.skill_text.includes('# BKE Lean Engineering'));
-    assert.ok(skill.skill_text.length > 1000);
+    for (const expected of catalog.skills) {
+      const source = 'HEAD:skills/' + expected.name + '/SKILL.md';
+      const expectedBlob = execFileSync('git', ['rev-parse', source], {encoding:'utf8'}).trim();
+      const expectedText = execFileSync('git', ['show', source], {encoding:'utf8'});
+      const skill = await getSkill(expected.name, expected.blob_sha);
+      assert.equal(skill.blob_sha, expectedBlob);
+      assert.equal(skill.tree_sha, catalog.tree_sha);
+      assert.equal(Object.hasOwn(skill, 'content'), false);
+      assert.equal(skill.skill_text, expectedText);
+      await assert.rejects(() => getSkill(expected.name, 'f'.repeat(40)), /changed/);
+    }
   } finally { globalThis.fetch = original; }
 });
 
