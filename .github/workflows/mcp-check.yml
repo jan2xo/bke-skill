@@ -71,3 +71,7 @@ jobs:
           for(let n=0;n<encoded.length;n+=3000)console.log('BKE_RELEASE_PART:'+n+':'+encoded.slice(n,n+3000));
           console.log('BKE_RELEASE_DONE:'+encoded.length);
           NODE
+      - name: Independently smoke-test PUBLIC production MCP skill_text
+        run: |
+          sed -i 's|http://127.0.0.1:8787/mcp|https://bke-skills-mcp.jan2xpagauisan.workers.dev/mcp|' scripts/mcp-smoke.mjs
+          node scripts/mcp-smoke.mjs
