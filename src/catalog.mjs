@@ -21,5 +21,8 @@ export async function getSkill(name, blobSha) {
   if (blobSha && blobSha !== skill.blob_sha) {
     throw new Error('Skill revision changed; refresh the catalog');
   }
-  return {...skill, tree_sha: snapshot.tree_sha};
+  // Avoid an inner JSON `content` field: ChatGPT MCP clients can discard that payload.
+  // Keep the actual SKILL.md bytes intact, including for other MCP clients.
+  return {name: skill.name, blob_sha: skill.blob_sha, path: skill.path,
+    source: skill.source, tree_sha: snapshot.tree_sha, skill_text: skill.content};
 }
