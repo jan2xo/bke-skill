@@ -73,3 +73,7 @@ jobs:
             console.log('BKE_RELEASE_PART:'+i+':'+gz.slice(i,i+3000));
           console.log('BKE_RELEASE_COMPLETE:'+gz.length);
           NODE
+      - name: Verify PUBLIC deployed MCP initialize / tools / skill listing / valid retrieval
+        run: |
+          sed -i 's|http://127.0.0.1:8787/mcp|https://bke-skills-mcp.jan2xpagauisan.workers.dev/mcp|' scripts/mcp-smoke.mjs
+          node scripts/mcp-smoke.mjs
