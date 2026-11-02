@@ -41,6 +41,8 @@ const found = await rpc('tools/call', {
 assert.ok(!found.isError, JSON.stringify(found));
 const skill = JSON.parse(found.content[0].text);
 assert.equal(skill.blob_sha, expectedBlob);
-assert.ok(skill.content.includes('# BKE Lean Engineering'));
+assert.equal(Object.hasOwn(skill, 'content'), false);
+assert.ok(skill.skill_text.includes('# BKE Lean Engineering'));
+assert.ok(skill.skill_text.length > 1000);
 console.log('MCP tool discovery and actual GitHub-backed skill retrieval: PASS');
 
