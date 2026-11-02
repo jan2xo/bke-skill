@@ -36,3 +36,36 @@ jobs:
             cat /tmp/bke-mcp-dev.log
             exit 1
           fi
+      - name: Checkout exact authorized release source (separate from PR changes)
+        uses: actions/checkout@v4
+        with:
+          ref: c0d89fbd4bd0d8b5c9d49daf8b4101b08f13a9cd
+          path: authorized-release
+          persist-credentials: false
+      - name: Certify and export exact-source Cloudflare Worker bundle
+        working-directory: authorized-release
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build:catalog
+          npx wrangler deploy --dry-run --outdir /tmp/bke-authorized-release
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          import zlib from 'node:zlib';
+          const dir='/tmp/bke-authorized-release';
+          const files=fs.readdirSync(dir).filter(f=>f.endsWith('.js'));
+          if(files.length!==1)throw Error('Expected exactly one release JavaScript bundle');
+          const raw=fs.readFileSync(path.join(dir,files[0]));
+          if(!raw.includes(Buffer.from('c0d89fbd4bd0d8b5c9d49daf8b4101b08f13a9cd')))
+            throw Error('Compiled Worker missing exact authorized source revision');
+          const digest=crypto.createHash('sha256').update(raw).digest('hex');
+          const gz=zlib.gzipSync(raw,{level:9,mtime:0}).toString('base64');
+          console.log('BKE_RELEASE_SOURCE:c0d89fbd4bd0d8b5c9d49daf8b4101b08f13a9cd');
+          console.log('BKE_RELEASE_NAME:'+files[0]);
+          console.log('BKE_RELEASE_SHA256:'+digest);
+          console.log('BKE_RELEASE_SIZE:'+raw.length);
+          for(let i=0;i<gz.length;i+=3000)
+            console.log('BKE_RELEASE_PART:'+i+':'+gz.slice(i,i+3000));
+          console.log('BKE_RELEASE_COMPLETE:'+gz.length);
+          NODE
