@@ -36,3 +36,51 @@ jobs:
             cat /tmp/bke-mcp-dev.log
             exit 1
           fi
+
+      - name: Checkout EXACT owner-authorized release source (independent of temporary PR)
+        uses: actions/checkout@v4
+        with:
+          ref: fbaf0e8265554e122130033162ea38a97c9d9ae2
+          path: release-source
+          persist-credentials: false
+      - name: Verify pinned GitHub source and both committed BKE skills
+        run: |
+          test "$(git -C release-source rev-parse HEAD)" = "fbaf0e8265554e122130033162ea38a97c9d9ae2"
+          test "$(git -C release-source status --porcelain)" = ""
+          test "$(git -C release-source rev-parse HEAD:skills/bke-lean-engineering/SKILL.md)" = "099af3c9a31c53fee95eedb2a8a27b4a81f52a9d"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-owner-handoff/SKILL.md)" = "f48f576ba0cf2e898fa3aa691da799118c69de0f"
+          grep -q '"workers_dev": true' release-source/wrangler.jsonc
+      - name: Certify and export exact-source two-skill Worker bundle (NO deployment)
+        working-directory: release-source
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build:catalog
+          npx wrangler deploy --dry-run --outdir /tmp/bke-owner-handoff-release
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          import zlib from 'node:zlib';
+          const source='fbaf0e8265554e122130033162ea38a97c9d9ae2';
+          const snap = await import('./src/catalog.snapshot.mjs');
+          const snapshot=snap.snapshot;
+          if(snapshot.source_commit!==source || snapshot.skills.length!==2 ||
+             snapshot.skills.find(s=>s.name==='bke-lean-engineering')?.blob_sha!=='099af3c9a31c53fee95eedb2a8a27b4a81f52a9d' ||
+             snapshot.skills.find(s=>s.name==='bke-owner-handoff')?.blob_sha!=='f48f576ba0cf2e898fa3aa691da799118c69de0f')
+             throw Error('Source / exact skill snapshot mismatch');
+          const dir='/tmp/bke-owner-handoff-release';
+          const files=fs.readdirSync(dir).filter(f=>f.endsWith('.js'));
+          if(files.length!==1) throw Error('Expected precisely one compiled Worker JavaScript module');
+          const data=fs.readFileSync(path.join(dir,files[0]));
+          for (const needle of [source,'099af3c9a31c53fee95eedb2a8a27b4a81f52a9d','f48f576ba0cf2e898fa3aa691da799118c69de0f'])
+            if (!data.includes(Buffer.from(needle))) throw Error('Compiled bundle missing immutable Git source identity');
+          const digest=crypto.createHash('sha256').update(data).digest('hex');
+          const gz=zlib.gzipSync(data,{level:9,mtime:0}).toString('base64');
+          console.log('BKE_RELEASE_COMMIT:'+source);
+          console.log('BKE_RELEASE_NAME:'+files[0]);
+          console.log('BKE_RELEASE_SHA256:'+digest);
+          console.log('BKE_RELEASE_BYTES:'+data.length);
+          for(let n=0;n<gz.length;n+=3000)console.log('BKE_RELEASE_PART:'+n+':'+gz.slice(n,n+3000));
+          console.log('BKE_RELEASE_COMPLETE:'+gz.length);
+          NODE
