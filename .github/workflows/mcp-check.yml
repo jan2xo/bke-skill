@@ -29,4 +29,7 @@ jobs:
             fi
             sleep 1
           done
-          node scripts/mcp-smoke.mjs
+          if ! node scripts/mcp-smoke.mjs; then
+            cat /tmp/bke-mcp-dev.log
+            exit 1
+          fi
