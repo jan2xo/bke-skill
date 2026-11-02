@@ -4,8 +4,10 @@
   "type": "module",
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "dev": "npm run build:catalog && wrangler dev",
+    "deploy": "npm run build:catalog && wrangler deploy",
+    "build:catalog": "node scripts/build-catalog.mjs",
+    "pretest": "npm run build:catalog"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.4.0",
