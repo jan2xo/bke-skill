@@ -19,7 +19,11 @@ function createServer() {
     inputSchema: z.object({name: z.string(), blob_sha: z.string().optional()}),
   }, async ({name, blob_sha}) => {
     try {
-      return {content: [{type: 'text', text: JSON.stringify(await getSkill(name, blob_sha))}]};
+      const {content: markdown, ...metadata} = await getSkill(name, blob_sha);
+      // A nested JSON field named `content` is discarded by some ChatGPT MCP clients.
+      // Preserve MCP TextContent while exposing the skill as unambiguous structured data.
+      const payload = {...metadata, markdown};
+      return {content: [{type: 'text', text: JSON.stringify(payload)}], structuredContent: payload};
     } catch (error) {
       return {isError: true, content: [{type: 'text', text: String(error.message)}]};
     }
