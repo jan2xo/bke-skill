@@ -1,0 +1,23 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "bke-skills",
+  "version": "0.1.0",
+  "description": "Connect to the public read-only BKE Skills MCP server to retrieve GitHub-canonical engineering skills by immutable revision.",
+  "author": {
+    "name": "BKE Digital Solutions"
+  },
+  "repository": "https://github.com/jan2xo/bke-skill",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "BKE Skills",
+        "shortDescription": "GitHub-native BKE skills",
+        "longDescription": "Discover BKE engineering skills and load the current instructions from the official GitHub repository through a read-only Cloudflare MCP service.",
+        "developerName": "BKE Digital Solutions",
+        "category": "Developer Tools",
+        "capabilities": [],
+        "defaultPrompt": "Load the relevant BKE engineering skill from GitHub before implementing this BKE task."
+      }
+    }
+  }
+}
