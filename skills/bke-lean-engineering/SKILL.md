@@ -25,6 +25,8 @@ Answer privately, briefly, before any code:
 
 If question 5 has no concrete answer, **do not add it**.
 
+**Define completion before implementation.** In the existing PR, state the accepted result, required evidence, completion boundary (source-only versus live/physical where applicable), and any remaining parent requirement. A completed source milestone must not be presented as completion of its unfinished parent product.
+
 ## Execution rules
 
 - **Reuse before building.** Extend existing code instead of adding parallel frameworks, wrappers, state stores, or speculative infrastructure.
@@ -32,6 +34,7 @@ If question 5 has no concrete answer, **do not add it**.
 - **Keep changes local.** No opportunistic refactors, renames, cleanup, unrelated tests, new documentation, workflow edits, or future-phase scaffolding.
 - **Preserve safety.** Fail closed on uncertain ownership, head, auth, claim, or dispatch state. No automatic replay after a possibly consumed send. Keep production and human authentication locked.
 - **Use real evidence.** Run focused tests where possible, then only the minimum required exact-head CI. Say explicitly when a test was skipped, mocked, or not run; a passing unrelated check proves nothing.
+- **Verify changed interfaces.** When changing an interface, inspect its actual producer and consumer. Verify that a representative valid value passes through the real receiving code, and that relevant malformed, stale, conflicting, or unauthorized values fail correctly. Confirm that required CI actually executes these tests. Source-text assertions alone do not establish runtime behavior.
 - **Move past independent blockers.** Record the precise blocker and owner action in the relevant GitHub issue/PR, then continue only separately authorized independent work.
 - **Stop at acceptance.** Do not manufacture a follow-up task because the implementation feels incomplete stylistically.
 
