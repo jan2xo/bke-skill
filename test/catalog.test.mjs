@@ -84,6 +84,25 @@ test('build picks up new committed skills and fails closed for bad content', (t)
   assert.throws(() => buildSnapshot(root), /maximum size/);
 });
 
+test('FORGE failed CI requires first-error causal investigation, not a platform blocker guess', async () => {
+  const forge = await getSkill('bke-forge-bounded-execution');
+  const text = forge.skill_text;
+  assert.match(text, /Failed run = investigate the first failure/);
+  assert.match(text, /bke-causal-investigation/);
+  assert.match(text, /earliest actionable failure/);
+  assert.match(text, /issue_comment/);
+  assert.match(text, /workflow_dispatch/);
+  assert.match(text, /SOURCE_OR_TEST/);
+  assert.match(text, /WORKFLOW_OR_TRIGGER/);
+  assert.match(text, /DEPENDENCY_OR_REGISTRY/);
+  assert.match(text, /ACTUAL_TOOL_UNAVAILABLE/);
+  assert.match(text, /Run the smallest falsifiable correction now/);
+  assert.match(text, /prevents \*\*every currently safe authorized next action\*\*/);
+  assert.match(text, /Checkpoint is not task completion/);
+  assert.match(text, /One skipped issue-comment event is not proof/);
+  assert.doesNotMatch(text, /Aim to stop initiating new engineering mutations by minute 15/);
+});
+
 test('FORGE bounded execution is explicit opt-in and not a Codex rule', async () => {
   const forge = await getSkill('bke-forge-bounded-execution');
   assert.match(forge.skill_text, /FORGE ONLY/);
