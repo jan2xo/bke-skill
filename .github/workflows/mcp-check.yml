@@ -36,3 +36,63 @@ jobs:
             cat /tmp/bke-mcp-dev.log
             exit 1
           fi
+
+      - name: Checkout EXACT authorized BKE Skills source independent of release PR
+        uses: actions/checkout@v4
+        with:
+          ref: 6accb89ce72e293a983992088f35194bb1471b7d
+          path: release-source
+          persist-credentials: false
+      - name: Verify immutable six-skill release source
+        run: |
+          test "$(git -C release-source rev-parse HEAD)" = "6accb89ce72e293a983992088f35194bb1471b7d"
+          test "$(git -C release-source status --porcelain)" = ""
+          test "$(git -C release-source rev-parse HEAD:skills/bke-causal-investigation/SKILL.md)" = "aecbdc9d0030265841a1c9d49c895d686f777c6b"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-forge-bounded-execution/SKILL.md)" = "91135eefd8698d19daedc6372c5b2ae670a553b3"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-lean-engineering/SKILL.md)" = "93af0e8cb0f21bb460fcd18c9ccf85c30630aecd"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-owner-handoff/SKILL.md)" = "f48f576ba0cf2e898fa3aa691da799118c69de0f"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-security-review/SKILL.md)" = "6a0b043eb370d3ef87f81373be7801cd50a9e69d"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-test-certification/SKILL.md)" = "ce5dafb51ea632e967b7d3f5091cd642d36757ed"
+          grep -q '"workers_dev": true' release-source/wrangler.jsonc
+      - name: Certify and export exact-source six-skill Worker bundle (NO deployment)
+        working-directory: release-source
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build:catalog
+          npx wrangler deploy --dry-run --outdir /tmp/bke-security-self-review-release
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          import zlib from 'node:zlib';
+          const source='6accb89ce72e293a983992088f35194bb1471b7d';
+          const expected_bke_causal_investigation = {name:'bke-causal-investigation',blob:'aecbdc9d0030265841a1c9d49c895d686f777c6b'};
+          const expected_bke_forge_bounded_execution = {name:'bke-forge-bounded-execution',blob:'91135eefd8698d19daedc6372c5b2ae670a553b3'};
+          const expected_bke_lean_engineering = {name:'bke-lean-engineering',blob:'93af0e8cb0f21bb460fcd18c9ccf85c30630aecd'};
+          const expected_bke_owner_handoff = {name:'bke-owner-handoff',blob:'f48f576ba0cf2e898fa3aa691da799118c69de0f'};
+          const expected_bke_security_review = {name:'bke-security-review',blob:'6a0b043eb370d3ef87f81373be7801cd50a9e69d'};
+          const expected_bke_test_certification = {name:'bke-test-certification',blob:'ce5dafb51ea632e967b7d3f5091cd642d36757ed'};
+          const expected=[expected_bke_causal_investigation,expected_bke_forge_bounded_execution,expected_bke_lean_engineering,expected_bke_owner_handoff,expected_bke_security_review,expected_bke_test_certification];
+          const {snapshot}=await import('./src/catalog.snapshot.mjs');
+          if(snapshot.source_commit!==source || snapshot.skills.length!==expected.length)throw Error('Wrong source commit or skill count');
+          for(const x of expected){
+            if(snapshot.skills.find(s=>s.name===x.name)?.blob_sha!==x.blob)throw Error('Unexpected skill blob for '+x.name);
+          }
+          const dir='/tmp/bke-security-self-review-release';
+          const files=fs.readdirSync(dir).filter(f=>f.endsWith('.js'));
+          if(files.length!==1)throw Error('Expected precisely one compiled Worker JavaScript module');
+          const data=fs.readFileSync(path.join(dir,files[0]));
+          for(const needle of [source,...expected.map(x=>x.blob)]){
+            if(!data.includes(Buffer.from(needle)))throw Error('Compiled bundle missing immutable source/skill identity');
+          }
+          if(!data.includes(Buffer.from('Accountable self-review')))throw Error('Compiled skill missing required revised section');
+          const digest=crypto.createHash('sha256').update(data).digest('hex');
+          const gz=zlib.gzipSync(data,{level:9,mtime:0}).toString('base64');
+          console.log('BKE_RELEASE_COMMIT:'+source);
+          console.log('BKE_RELEASE_NAME:'+files[0]);
+          console.log('BKE_RELEASE_SHA256:'+digest);
+          console.log('BKE_RELEASE_BYTES:'+data.length);
+          for(let n=0;n<gz.length;n+=3000)console.log('BKE_RELEASE_PART:'+n+':'+gz.slice(n,n+3000));
+          console.log('BKE_RELEASE_COMPLETE:'+gz.length);
+          NODE
