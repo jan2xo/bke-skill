@@ -36,3 +36,56 @@ jobs:
             cat /tmp/bke-mcp-dev.log
             exit 1
           fi
+
+      - name: Checkout owner-authorized exact main source independent of release PR
+        uses: actions/checkout@v4
+        with:
+          ref: 619b824a3076b781e6e2ff7767a0c9d38d6e8662
+          path: release-source
+          persist-credentials: false
+      - name: Verify exact source, tree and six immutable skill pins
+        run: |
+          test "$(git -C release-source rev-parse HEAD)" = "619b824a3076b781e6e2ff7767a0c9d38d6e8662"
+          test "$(git -C release-source rev-parse HEAD^{tree})" = "54a9d5d3fcaf5c7bf75f50cfd248cb2bb7adb476"
+          test "$(git -C release-source status --porcelain)" = ""
+          test "$(git -C release-source rev-parse HEAD:skills/bke-causal-investigation/SKILL.md)" = "aecbdc9d0030265841a1c9d49c895d686f777c6b"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-forge-bounded-execution/SKILL.md)" = "91135eefd8698d19daedc6372c5b2ae670a553b3"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-lean-engineering/SKILL.md)" = "93af0e8cb0f21bb460fcd18c9ccf85c30630aecd"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-owner-handoff/SKILL.md)" = "f48f576ba0cf2e898fa3aa691da799118c69de0f"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-security-review/SKILL.md)" = "ced8cf49f5c974f435d0febecf56b8f9022eeac1"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-test-certification/SKILL.md)" = "ce5dafb51ea632e967b7d3f5091cd642d36757ed"
+          grep -q '"workers_dev": true' release-source/wrangler.jsonc
+      - name: Certify and export pinned six-skill bundle (NO deployment)
+        working-directory: release-source
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build:catalog
+          npx wrangler deploy --dry-run --outdir /tmp/bke-skills-six-release
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          import zlib from 'node:zlib';
+          const source='619b824a3076b781e6e2ff7767a0c9d38d6e8662';
+          const tree='54a9d5d3fcaf5c7bf75f50cfd248cb2bb7adb476';
+          const expected=[{"name":"bke-causal-investigation","path":"skills/bke-causal-investigation/SKILL.md","blob_sha":"aecbdc9d0030265841a1c9d49c895d686f777c6b"},{"name":"bke-forge-bounded-execution","path":"skills/bke-forge-bounded-execution/SKILL.md","blob_sha":"91135eefd8698d19daedc6372c5b2ae670a553b3"},{"name":"bke-lean-engineering","path":"skills/bke-lean-engineering/SKILL.md","blob_sha":"93af0e8cb0f21bb460fcd18c9ccf85c30630aecd"},{"name":"bke-owner-handoff","path":"skills/bke-owner-handoff/SKILL.md","blob_sha":"f48f576ba0cf2e898fa3aa691da799118c69de0f"},{"name":"bke-security-review","path":"skills/bke-security-review/SKILL.md","blob_sha":"ced8cf49f5c974f435d0febecf56b8f9022eeac1"},{"name":"bke-test-certification","path":"skills/bke-test-certification/SKILL.md","blob_sha":"ce5dafb51ea632e967b7d3f5091cd642d36757ed"}];
+          const {snapshot}=await import('./src/catalog.snapshot.mjs');
+          if(snapshot.source_commit!==source || snapshot.tree_sha!==tree || snapshot.skills.length!==expected.length) throw Error('Source/tree/skill count mismatch');
+          for(const pin of expected) if(snapshot.skills.find(s=>s.name===pin.name)?.blob_sha!==pin.blob_sha) throw Error('Unexpected skill revision: '+pin.name);
+          const dir='/tmp/bke-skills-six-release';
+          const files=fs.readdirSync(dir).filter(f=>f.endsWith('.js'));
+          if(files.length!==1) throw Error('Expected exactly one compiled Worker JS module');
+          const data=fs.readFileSync(path.join(dir,files[0]));
+          for(const needle of [source,tree,...expected.map(s=>s.blob_sha)]) if(!data.includes(Buffer.from(needle))) throw Error('Bundle lacks immutable identity: '+needle);
+          const digest=crypto.createHash('sha256').update(data).digest('hex');
+          const gz=zlib.gzipSync(data,{level:9,mtime:0}).toString('base64');
+          console.log('BKE_RELEASE_COMMIT:'+source);
+          console.log('BKE_RELEASE_TREE:'+tree);
+          console.log('BKE_RELEASE_SKILLS:'+JSON.stringify(expected));
+          console.log('BKE_RELEASE_NAME:'+files[0]);
+          console.log('BKE_RELEASE_SHA256:'+digest);
+          console.log('BKE_RELEASE_BYTES:'+data.length);
+          for(let n=0;n<gz.length;n+=3000) console.log('BKE_RELEASE_PART:'+n+':'+gz.slice(n,n+3000));
+          console.log('BKE_RELEASE_COMPLETE:'+gz.length);
+          NODE
