@@ -35,6 +35,19 @@ Before mutating:
 - Push coherent recoverable changes on the assigned branch before depending on CI. State whether they are unverified, failed, or accepted; a pushed change is not automatically a valid solution.
 - Never represent unpushed workspace edits or local scratch as durable implementation. Preserve reproducible experiments and test inputs only in authorized GitHub objects.
 
+## 3A. Failed run = investigate the first failure, not declare platform BLOCKED
+**Mandatory for FORGE whenever code, CI, build, registry, dependency resolution, or a tool operation fails or appears skipped:** use `bke-causal-investigation` with actual evidence **before** diagnosing a missing capability, requesting a new workflow/dispatcher, or ending with `BLOCKED`.
+
+1. **Identify which event actually happened.** Recover the specific command, actor, workflow trigger, run ID and attempt. Distinguish `skipped` by an inapplicable event/guard from a required job that failed, a run that never triggered, a queued runner, and a genuinely denied dispatch operation. One skipped issue-comment event is not proof that a separate valid `/certify core` comment cannot launch certification.
+2. **Trace the candidate actually tested.** For an `issue_comment` run, the Actions run head may be default-branch `main`. Inspect the certification plan, `SOURCE_SHA`, exact checkout and effective workflow revision before saying the PR head was or was not executed.
+3. **Read the earliest actionable failure, not only the aggregate badge.** Open required job/step logs, compiler and test stderr, source file and line, and preceding setup. Validate syntax/typecheck and test harness wiring before attributing an npm generation failure to registry networking or unavailable CI compute. Treat secondary downstream failures separately.
+4. **Classify the failure with evidence:** `SOURCE_OR_TEST`, `WORKFLOW_OR_TRIGGER`, `DEPENDENCY_OR_REGISTRY`, `PERMISSION_OR_SECURITY`, `ACTUAL_TOOL_UNAVAILABLE`, or `UNKNOWN`. Separate observed fact, hypothesis and counterevidence. **Do not say "GitHub Actions cannot execute" solely because one connector does not expose `workflow_dispatch`** if an already-authorized PR comment or existing workflow can execute the candidate.
+5. **Run the smallest falsifiable correction now.** State what log/source observation supports the hypothesis, predict how a narrow patch or authorized experiment changes the failing step, commit safely on the assigned PR, rerun only the needed exact-head graph, read the new logs and iterate while the invocation can act. Never fabricate generated lockfile bytes, test output or a successful audit; do not weaken gates merely to obtain green.
+6. **Escalate precisely, not generically.** `FAILED_CI` / `REMEDIATE` means engineering still has work; `WAITING_ON_CI` means external work is unfinished; `BLOCKED` is reserved for a proven authority/security/tool barrier that prevents **every currently safe authorized next action**, with the specific denied API/operation, evidence, attempted existing alternatives and owner-only release condition. Repeated unchanged failures call for a different experiment, not another summary.
+7. **Checkpoint is not task completion.** Record the first failing step, exact run/job/link, tested source, classification, experiment/result and next concrete action in the existing PR. Continue engineering after the checkpoint if this invocation can still act. Hand off only at a real session/access/authority boundary; never invent background wake.
+
+**PR #269 exemplar (diagnosis discipline, not a permanent dependency on that PR):** A valid `/certify core` issue comment ran actual exact-source GitHub jobs even when other comment-triggered runs were `skipped`. An invalid `try`/`finally` test callback prevented npm resolution **before** any registry experiment could establish success or failure. Investigate the earliest parser error before calling workflow dispatch unavailable. This exemplar is evidence of how to reason, **not a requirement to access or reopen PR #269**.
+
 ## 4. Meaningful checkpoints in the assigned PR
 Post after a significant finding, pushed change, causal failure, verified CI result or real blocker, and before session end when possible. Do not post for trivial tool calls or duplicate unchanged material. Each checkpoint must be sanitized for the repository audience.
 
@@ -48,7 +61,9 @@ TASK CONTRACT / AUTHORITY: PR section or link + owner-approved scope
 REPO / PR / HEAD / BASE: verified IDs and SHAs
 COMPLETED: what was pushed, tested or established
 EVIDENCE: criterion -> PASS | FAIL | PENDING | NOT_RUN -> run + attempt + actual checkout/workflow/artifact
+FIRST FAILURE / CLASSIFICATION: actual failing job, step, log/source line; source/test vs workflow/trigger vs registry vs permission/tool
 ROOT CAUSE / HYPOTHESES: established cause, or not established; distinguish conjectures
+EXPERIMENT / RESULT: smallest attempted correction and exact-head evidence
 PENDING / UNKNOWN: operations, run IDs and required reconciliation
 WORKSPACE: pushed changes vs unpushed/discarded work
 NEXT ACTION: smallest executable next step and prerequisite
