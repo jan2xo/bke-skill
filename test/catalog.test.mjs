@@ -28,10 +28,11 @@ test('catalog lists committed skills with Git SHA metadata, not content', async 
   assert.equal(catalog.skills.find(x => x.name === knownName).content, undefined);
 });
 
-test('all four published skills return committed bytes without request-time network fetch', async () => {
+test('all six published skills return committed bytes without request-time network fetch', async () => {
   const catalog = await listSkills();
-  const expectedNames = ['bke-lean-engineering', 'bke-owner-handoff',
-    'bke-security-review', 'bke-test-certification'];
+  const expectedNames = ['bke-causal-investigation', 'bke-forge-bounded-execution',
+    'bke-lean-engineering', 'bke-owner-handoff', 'bke-security-review',
+    'bke-test-certification'];
   assert.deepEqual(catalog.skills.map(s => s.name).sort(), expectedNames);
   const original = globalThis.fetch;
   globalThis.fetch = () => { throw new Error('Unexpected network access'); };
@@ -81,4 +82,13 @@ test('build picks up new committed skills and fails closed for bad content', (t)
   assert.throws(() => buildSnapshot(root), /frontmatter/);
   writeFileSync(path.join(second,'SKILL.md'),'x'.repeat(65537));
   assert.throws(() => buildSnapshot(root), /maximum size/);
+});
+
+test('FORGE bounded execution is explicit opt-in and not a Codex rule', async () => {
+  const forge = await getSkill('bke-forge-bounded-execution');
+  assert.match(forge.skill_text, /FORGE ONLY/);
+  assert.match(forge.skill_text, /Never apply this skill to Codex/);
+  assert.match(forge.skill_text, /20 minutes elapsed wall-clock/);
+  const investigation = await getSkill('bke-causal-investigation');
+  assert.match(investigation.skill_text, /does not impose FORGE session time limits/);
 });
