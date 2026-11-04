@@ -30,13 +30,12 @@ Inspect actual producer/consumer code, validation order, error transport, and re
 
 Read-only inspection is the default. Execute reviewed code, hostile inputs, fault injection, or live probes only within the task's authorized environment and side-effect limits. Never use production, customer data, secrets, authenticated browser profiles, or security challenges as convenient review fixtures. When a required test is unavailable, state the limitation; do not fabricate results or bypass the restriction.
 
-## Review provenance
+## Accountable self-review
 
-- An implementer's self-audit is useful but is not independent acceptance of their own claims.
-- If independent review is required, use an eligible separate reviewer or a fresh isolated review context that did not implement the candidate, as permitted by the task's actual rules. Give it the candidate and raw evidence without an intended verdict.
-- Record who performed the assessment, their implementation involvement, and the account publishing it. A different account, model, skill, or MCP server alone does not prove independence. A sub-agent context is not proof of a separate human or principal.
-- Honor any stricter requirement for a distinct authenticated account or formal GitHub approval. If the required independence cannot be established, report BLOCKED; do not silently substitute self-review.
-- Attribute an agent's assessment honestly. An explicit verdict in a COMMENT review is not a formal APPROVED event.
+- The implementing agent may examine its own change and record an accountable `SELF_REVIEW_ACCEPT`, `REMEDIATE`, or `BLOCKED` assessment. This skill does not require a second reviewer, another ChatGPT instance, another GitHub account, or a manual approval click.
+- Challenge the actual changed trust boundaries, adverse cases, and exact-head certification before accepting. An implementer's assessment may miss defects: disclose meaningful uncertainty and unresolved findings instead of claiming extra assurance.
+- Record the assessing actor, its implementation involvement, the GitHub account publishing the result, reviewed head, executed evidence, and remaining limitations. Never invent a second reviewing principal or misstate a PR comment as GitHub's formal `APPROVED` event.
+- Explicit owner-only decisions, security and production locks, and requirements actually enforced by GitHub branch rules remain binding. When GitHub truly requires formal review approval, stop until the authorized gate is met or legitimately changed; do not route around a denied operation. This skill itself creates no external-review requirement.
 
 ## Findings and verdict
 
@@ -46,7 +45,7 @@ Use the repository's required verdicts. For a source review, use:
 
 - **ACCEPT_SOURCE_ONLY:** The declared source scope has no identified material unresolved finding and its required source evidence is satisfied.
 - **REMEDIATE:** A concrete in-scope defect or unmet requirement needs correction.
-- **BLOCKED:** Missing required authority, evidence, access, or reviewer provenance prevents a defensible disposition.
+- **BLOCKED:** Missing required authority, evidence, access, or an applicable enforced gate prevents a defensible disposition.
 
 Bind the verdict to the exact head, scope, evidence, counterevidence, and remaining unverified boundaries. Recheck the live head before publication; after a head change, identify stale evidence and review the changed candidate before issuing a new verdict. Publish to the existing PR only when authorized and verify persistence. Do not edit, merge, deploy, or create follow-on work merely because the review found something.
 
