@@ -38,8 +38,9 @@ assert.deepEqual(listing.tools.map(x => x.name).sort(), ['get_skill', 'list_skil
 const listed = await rpc('tools/call', {name:'list_skills',arguments:{}}, 3);
 assert.ok(!listed.isError, JSON.stringify(listed));
 const inventory = JSON.parse(listed.content[0].text);
-const expectedNames = ['bke-lean-engineering', 'bke-owner-handoff',
-  'bke-security-review', 'bke-test-certification'];
+const expectedNames = ['bke-causal-investigation', 'bke-forge-bounded-execution',
+  'bke-lean-engineering', 'bke-owner-handoff', 'bke-security-review',
+  'bke-test-certification'];
 assert.deepEqual(inventory.skills.map(s => s.name).sort(), expectedNames);
 const expectedTree = execFileSync('git', ['rev-parse', 'HEAD^{tree}'],
   {encoding: 'utf8'}).trim();
