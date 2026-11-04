@@ -36,3 +36,58 @@ jobs:
             cat /tmp/bke-mcp-dev.log
             exit 1
           fi
+
+      - name: Checkout exact owner-authorized six-skill source (not release PR)
+        uses: actions/checkout@v4
+        with:
+          ref: b0ecf01548f111285b7cb9440b0ecdfc9e38c6d1
+          path: release-source
+          persist-credentials: false
+      - name: Verify source and committed skill hashes
+        run: |
+          test "$(git -C release-source rev-parse HEAD)" = "b0ecf01548f111285b7cb9440b0ecdfc9e38c6d1"
+          test "$(git -C release-source status --porcelain)" = ""
+          test "$(git -C release-source rev-parse HEAD:skills/bke-causal-investigation/SKILL.md)" = "aecbdc9d0030265841a1c9d49c895d686f777c6b"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-forge-bounded-execution/SKILL.md)" = "79029ca4764e74abedd925f5fe3ed8bdda827ce4"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-lean-engineering/SKILL.md)" = "93af0e8cb0f21bb460fcd18c9ccf85c30630aecd"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-owner-handoff/SKILL.md)" = "f48f576ba0cf2e898fa3aa691da799118c69de0f"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-security-review/SKILL.md)" = "6a0b043eb370d3ef87f81373be7801cd50a9e69d"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-test-certification/SKILL.md)" = "ce5dafb51ea632e967b7d3f5091cd642d36757ed"
+          grep -q '"workers_dev": true' release-source/wrangler.jsonc
+      - name: Certify and export pinned six-skill Worker module (NO DEPLOY)
+        working-directory: release-source
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build:catalog
+          npx wrangler deploy --dry-run --outdir /tmp/bke-forge-continuation-release
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          import zlib from 'node:zlib';
+          const source='b0ecf01548f111285b7cb9440b0ecdfc9e38c6d1';
+          const expected=[{"name":"bke-causal-investigation","blob":"aecbdc9d0030265841a1c9d49c895d686f777c6b"},{"name":"bke-forge-bounded-execution","blob":"79029ca4764e74abedd925f5fe3ed8bdda827ce4"},{"name":"bke-lean-engineering","blob":"93af0e8cb0f21bb460fcd18c9ccf85c30630aecd"},{"name":"bke-owner-handoff","blob":"f48f576ba0cf2e898fa3aa691da799118c69de0f"},{"name":"bke-security-review","blob":"6a0b043eb370d3ef87f81373be7801cd50a9e69d"},{"name":"bke-test-certification","blob":"ce5dafb51ea632e967b7d3f5091cd642d36757ed"}];
+          const {snapshot}=await import('./src/catalog.snapshot.mjs');
+          if(snapshot.source_commit!==source || snapshot.skills.length!==expected.length)
+            throw Error('source or six-skill count mismatch');
+          for(const s of expected)
+            if(snapshot.skills.find(x=>x.name===s.name)?.blob_sha!==s.blob)
+              throw Error('skill blob mismatch: '+s.name);
+          const dir='/tmp/bke-forge-continuation-release';
+          const files=fs.readdirSync(dir).filter(x=>x.endsWith('.js'));
+          if(files.length!==1)throw Error('expected one compiled Worker JS module');
+          const bytes=fs.readFileSync(path.join(dir,files[0]));
+          for(const needle of [source,...expected.map(s=>s.blob),'## 1. Session budget is not an early-stop command','WAITING_ON_CI']){
+            if(!bytes.includes(Buffer.from(needle)))throw Error('module identity/instruction missing: '+needle);
+          }
+          const hash=crypto.createHash('sha256').update(bytes).digest('hex');
+          const packed=zlib.gzipSync(bytes,{level:9,mtime:0}).toString('base64');
+          console.log('BKE_RELEASE_COMMIT:'+source);
+          console.log('BKE_RELEASE_NAME:'+files[0]);
+          console.log('BKE_RELEASE_SHA256:'+hash);
+          console.log('BKE_RELEASE_BYTES:'+bytes.length);
+          for(let i=0;i<packed.length;i+=3000)
+            console.log('BKE_RELEASE_PART:'+i+':'+packed.slice(i,i+3000));
+          console.log('BKE_RELEASE_COMPLETE:'+packed.length);
+          NODE
