@@ -36,3 +36,65 @@ jobs:
             cat /tmp/bke-mcp-dev.log
             exit 1
           fi
+
+      - name: Checkout EXACT owner-authorized merged main for release
+        uses: actions/checkout@v4
+        with:
+          ref: 65638b1f970e247a669a8700663300547dd065ba
+          path: release-source
+          persist-credentials: false
+      - name: Verify independent checkout, immutable tree and all seven blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C release-source rev-parse HEAD)" = "65638b1f970e247a669a8700663300547dd065ba"
+          test "$(git -C release-source rev-parse HEAD^{tree})" = "8f5af26fde25be2b58053c27b155eabdd8492c55"
+          test "$(git -C release-source status --porcelain)" = ""
+          test "$(git -C release-source rev-parse HEAD:skills/bke-causal-investigation/SKILL.md)" = "aecbdc9d0030265841a1c9d49c895d686f777c6b"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-decision-discipline/SKILL.md)" = "45e7a79f4b8569b1c2f6f82cdb814086821f017c"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-forge-bounded-execution/SKILL.md)" = "813199116212437fcc0820b98211a885eb33a62f"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-lean-engineering/SKILL.md)" = "93af0e8cb0f21bb460fcd18c9ccf85c30630aecd"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-owner-handoff/SKILL.md)" = "f48f576ba0cf2e898fa3aa691da799118c69de0f"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-security-review/SKILL.md)" = "6a0b043eb370d3ef87f81373be7801cd50a9e69d"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-test-certification/SKILL.md)" = "ce5dafb51ea632e967b7d3f5091cd642d36757ed"
+          grep -q '"workers_dev": true' release-source/wrangler.jsonc
+      - name: Certify and export only exact-main public seven-skill Worker module (NO DEPLOY)
+        working-directory: release-source
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build:catalog
+          npx --no-install wrangler deploy --dry-run --outdir /tmp/bke-skills-mcp-seven
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          import zlib from 'node:zlib';
+          const source='65638b1f970e247a669a8700663300547dd065ba';
+          const tree='8f5af26fde25be2b58053c27b155eabdd8492c55';
+          const pins={"bke-causal-investigation":"aecbdc9d0030265841a1c9d49c895d686f777c6b","bke-decision-discipline":"45e7a79f4b8569b1c2f6f82cdb814086821f017c","bke-forge-bounded-execution":"813199116212437fcc0820b98211a885eb33a62f","bke-lean-engineering":"93af0e8cb0f21bb460fcd18c9ccf85c30630aecd","bke-owner-handoff":"f48f576ba0cf2e898fa3aa691da799118c69de0f","bke-security-review":"6a0b043eb370d3ef87f81373be7801cd50a9e69d","bke-test-certification":"ce5dafb51ea632e967b7d3f5091cd642d36757ed"};
+          const snapshot=(await import('./src/catalog.snapshot.mjs')).snapshot;
+          if(snapshot.source_commit!==source || snapshot.tree_sha!==tree || snapshot.skills.length!==7) throw Error('Unexpected release catalog commit/tree/count');
+          for(const [name,sha] of Object.entries(pins)) {
+            const skill=snapshot.skills.find(s=>s.name===name);
+            if(skill?.blob_sha!==sha) throw Error('Unexpected release skill '+name);
+          }
+          const dir='/tmp/bke-skills-mcp-seven';
+          const files=fs.readdirSync(dir).filter(f=>f.endsWith('.js'));
+          if(files.length!==1) throw Error('Release must contain precisely one compiled JS module');
+          const bytes=fs.readFileSync(path.join(dir,files[0]));
+          for(const identity of [source,tree,...Object.values(pins)]) {
+            if(!bytes.includes(Buffer.from(identity))) throw Error('Compiled bundle missing pinned identity: '+identity);
+          }
+          const digest=crypto.createHash('sha256').update(bytes).digest('hex');
+          const encoded=zlib.gzipSync(bytes,{level:9,mtime:0}).toString('base64');
+          console.log('BKE_RELEASE_SOURCE:'+source);
+          console.log('BKE_RELEASE_TREE:'+tree);
+          console.log('BKE_RELEASE_NAME:'+files[0]);
+          console.log('BKE_RELEASE_SHA256:'+digest);
+          console.log('BKE_RELEASE_BYTES:'+bytes.length);
+          for(let i=0;i<encoded.length;i+=3000)console.log('BKE_RELEASE_PART:'+i+':'+encoded.slice(i,i+3000));
+          console.log('BKE_RELEASE_COMPLETE:'+encoded.length);
+          NODE
