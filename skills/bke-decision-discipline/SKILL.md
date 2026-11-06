@@ -16,7 +16,7 @@ Read current owner instructions, the repository's root `bke.md`, the assigned ta
 Before writing, identify the authorized result, acceptance boundary, owning PR/branch and exclusions. An integration destination is not blanket permission to implement every feature there.
 
 - One independent intent belongs in one fresh PR from the verified current default branch (normally `main`) under the target repository's contract. Reuse an already assigned open task PR only when it remains the authorized, current implementation owner.
-- A dependent stacked PR requires an explicitly authorized dependency exception: record its base, prerequisite and integration order. Never infer this exception merely because another feature branch is convenient.
+- A dependent stacked PR requires an explicitly authorized dependency exception: record its base, prerequisite and integration order. Never infer this exception merely because another feature branch is convenient. An already explicit task, dependency or release authorization governs its exception; this skill does not require repeat approval of that model.
 - Fixes and tests needed to complete the same intent stay in its PR; do not create a PR for every corrective commit.
 - A newly discovered unrelated improvement is a proposal, not an extension of the active task. Do not implement it or propagate it into another PR without scope authority.
 - If owner direction changes, reconcile the task contract before the next mutation. Continue independently authorized work while a genuinely dependent decision is unresolved.
@@ -51,7 +51,7 @@ Read relevant workflow triggers, guards, concurrency groups, permissions and rec
 
 For example: `shared cancellation group -> sequential affected runs -> wait for completion before the next conflicting dispatch`. Do not redispatch a known conflicting multi-target command and plan to recover from the same cancellations again.
 
-- Use the minimum complete affected graph. Include or exclude a check because of the responsibility it actually tests, not its name or its previous result.
+- Use the minimum complete affected graph. Include or exclude a check because of the responsibility it actually tests, not its name or its previous result. Preserve every check required by the applicable repository/task acceptance contract; graph selection does not waive existing gates.
 - When scheduler or workflow behavior causes a failure, distinguish it from source/test failure. Retain the red/cancelled evidence; never count it as passed.
 - Verify workflow revision, tested source, run attempt and actual required job results. On comment-triggered CI, the run's main-branch SHA may differ from its candidate checkout.
 - Keep reusable constraints in the existing PR's current summary. A permanent scheduler fix is a separate intent unless already authorized; do not silently rewrite CI during feature recovery.
