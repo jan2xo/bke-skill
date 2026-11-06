@@ -2,7 +2,7 @@
 
 This is the agreed capability map and milestone checklist for BKE Skills. Root [bke.md](../bke.md), explicit owner decisions, and live GitHub PR/CI/release state govern execution. A candidate listed here is not an authorized implementation task.
 
-**Published state verified: 3 November 2026, Asia/Manila.** [PR #17](https://github.com/jan2xo/bke-skill/pull/17) is merged. Published source is `a12eeef544ffdde6184ad3c68e66f4ae0061fb7e`, tree `63f8324e4e9a8a6d11df9411703efca931c91492`. The connected production catalog lists all four skills; every pinned `get_skill` returned full Markdown matching that canonical source. [Release evidence and completed checklist](https://github.com/jan2xo/bke-skill/pull/18#issuecomment-6586188924) are in temporary PR #18, closed without merge.
+**Published state verified: 7 November 2026, Asia/Manila.** The connected production catalog lists six skills at source tree `24f2573a9c73b423b779655ad3ab4552a300cb07`, matching current main `c6fcf88f43e035109b5c4d4a8edd95f648c11660`; all six native `get_skill` calls returned full Markdown. The proposed decision-discipline skill below is not in that live snapshot. Historical four-skill release evidence remains in [PR #18](https://github.com/jan2xo/bke-skill/pull/18#issuecomment-6586188924), closed without merge.
 
 Checked items below describe the specific completed milestone, not completion of the whole product. Current PR heads, required CI, reviews, merge and live publication must be rechecked in GitHub; this document is not a per-push execution ledger.
 
@@ -10,9 +10,12 @@ Checked items below describe the specific completed milestone, not completion of
 
 | Skill | Responsibility | Source and live status |
 |---|---|---|
+| [bke-causal-investigation](../skills/bke-causal-investigation/SKILL.md) | Evidence-led diagnosis and discriminating experiments before speculative fixes | On main and retrieved through the live MCP at blob `aecbdc9d0030265841a1c9d49c895d686f777c6b` |
+| [bke-decision-discipline](../skills/bke-decision-discipline/SKILL.md) | Decide whether and where to change code; carry CI constraints, policy boundaries and current-state decisions into execution | Proposed source addition; source CI and behavioral evaluation belong to its PR. Not yet merged or published to the live MCP |
+| [bke-forge-bounded-execution](../skills/bke-forge-bounded-execution/SKILL.md) | Explicitly assigned FORGE session execution and recovery; does not apply to Codex/Sol | On main and retrieved through the live MCP at blob `813199116212437fcc0820b98211a885eb33a62f` |
 | [bke-lean-engineering](../skills/bke-lean-engineering/SKILL.md) | Authorized scope, reuse, minimum complete change and verification, completion boundaries | On main and retrieved through the live MCP at blob `93af0e8cb0f21bb460fcd18c9ccf85c30630aecd` |
 | [bke-owner-handoff](../skills/bke-owner-handoff/SKILL.md) | Meaningful checkpoints, precise blockers, necessary owner decisions and truthful handoffs | On main and retrieved through the live MCP at blob `f48f576ba0cf2e898fa3aa691da799118c69de0f` |
-| [bke-security-review](../skills/bke-security-review/SKILL.md) | Relevant trust boundaries, misuse/failure paths, material findings and review provenance | On main and retrieved through the live MCP at blob `ced8cf49f5c974f435d0febecf56b8f9022eeac1` |
+| [bke-security-review](../skills/bke-security-review/SKILL.md) | Relevant trust boundaries, misuse/failure paths, material findings and review provenance | On main and retrieved through the live MCP at blob `6a0b043eb370d3ef87f81373be7801cd50a9e69d` |
 | [bke-test-certification](../skills/bke-test-certification/SKILL.md) | Actual CI execution, interface proof, evidence/artifact integrity and acceptance boundaries | On main and retrieved through the live MCP at blob `ce5dafb51ea632e967b7d3f5091cd642d36757ed` |
 
 A retrieved skill supplies guidance. It does not grant authority, enforce agent behavior, create an independent reviewer, render an interface, or prove a native/production outcome.

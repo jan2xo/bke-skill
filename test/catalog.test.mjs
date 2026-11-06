@@ -28,9 +28,10 @@ test('catalog lists committed skills with Git SHA metadata, not content', async 
   assert.equal(catalog.skills.find(x => x.name === knownName).content, undefined);
 });
 
-test('all six published skills return committed bytes without request-time network fetch', async () => {
+test('all seven published skills return committed bytes without request-time network fetch', async () => {
   const catalog = await listSkills();
-  const expectedNames = ['bke-causal-investigation', 'bke-forge-bounded-execution',
+  const expectedNames = ['bke-causal-investigation', 'bke-decision-discipline',
+    'bke-forge-bounded-execution',
     'bke-lean-engineering', 'bke-owner-handoff', 'bke-security-review',
     'bke-test-certification'];
   assert.deepEqual(catalog.skills.map(s => s.name).sort(), expectedNames);
