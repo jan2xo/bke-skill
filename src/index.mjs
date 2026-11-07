@@ -3,10 +3,18 @@ import {createMcpHandler} from 'agents/mcp/server';
 import {z} from 'zod';
 import {getSkill, listSkills} from './catalog.mjs';
 
+const READ_ONLY_ANNOTATIONS = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+};
+
 function createServer() {
   const server = new McpServer({name: 'bke-skills', version: '0.1.0'});
   server.registerTool('list_skills', {
     description: 'List public BKE skills in the deployed GitHub-source release with immutable blob SHAs.',
+    annotations: READ_ONLY_ANNOTATIONS,
   }, async () => {
     try {
       return {content: [{type: 'text', text: JSON.stringify(await listSkills())}]};
@@ -16,6 +24,7 @@ function createServer() {
   });
   server.registerTool('get_skill', {
     description: 'Read one BKE SKILL.md in this release, optionally pinned to its listed Git blob SHA.',
+    annotations: READ_ONLY_ANNOTATIONS,
     inputSchema: z.object({name: z.string(), blob_sha: z.string().optional()}),
   }, async ({name, blob_sha}) => {
     try {
