@@ -89,6 +89,10 @@ assert.equal(primary.skill_text, execFileSync('git',
 for (const [args, error] of [
   [{name:'nonexistent-skill'}, /not found/],
   [{name:'bke-lean-engineering', blob_sha:'f'.repeat(40)}, /revision changed/],
+  // This is the real primary blob from verified main before the current change.
+  [{name:'bke-lean-engineering', blob_sha:'93af0e8cb0f21bb460fcd18c9ccf85c30630aecd'}, /revision changed/],
+  // A valid SHA belonging to another current skill cannot be used to spoof the primary.
+  [{name:'bke-lean-engineering', blob_sha:'45e7a79f4b8569b1c2f6f82cdb814086821f017c'}, /revision changed/],
   [{name:'../secret'}, /Invalid/],
 ]) {
   const result = await rpc('tools/call', {name:'get_skill', arguments:args}, requestId++);

@@ -90,6 +90,8 @@ test('rejects invalid names, missing skills and stale revisions', async () => {
   await assert.rejects(() => getSkill(knownName, 'bad'), /Invalid/);
   await assert.rejects(() => getSkill('nonexistent-skill'), /not found/);
   await assert.rejects(() => getSkill(knownName, 'f'.repeat(40)), /changed/);
+  await assert.rejects(() => getSkill(knownName, '93af0e8cb0f21bb460fcd18c9ccf85c30630aecd'), /changed/);
+  await assert.rejects(() => getSkill(knownName, '45e7a79f4b8569b1c2f6f82cdb814086821f017c'), /changed/);
 });
 
 test('build snapshot uses real Git blobs and rejects uncommitted changes', (t) => {
