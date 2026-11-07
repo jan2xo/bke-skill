@@ -35,7 +35,19 @@ const init = await rpc('initialize', {
 assert.ok(init.protocolVersion);
 const listing = await rpc('tools/list', {}, 2);
 assert.deepEqual(listing.tools.map(x => x.name).sort(), ['get_skill', 'list_skills']);
-const listed = await rpc('tools/call', {name:'list_skills',arguments:{}}, 3);
+for (const tool of listing.tools) {
+  assert.deepEqual(tool.annotations, {
+    readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false,
+  }, tool.name + ': incorrect actual tools/list hints');
+}
+// Primary first, without an extra list call or a supplied revision.
+const initial = await rpc('tools/call', {
+  name:'get_skill', arguments:{name:'bke-lean-engineering'},
+}, 3);
+assert.ok(!initial.isError, JSON.stringify(initial));
+const primary = JSON.parse(initial.content[0].text);
+assert.ok(Array.isArray(primary.available_skills));
+const listed = await rpc('tools/call', {name:'list_skills',arguments:{}}, 4);
 assert.ok(!listed.isError, JSON.stringify(listed));
 const inventory = JSON.parse(listed.content[0].text);
 const expectedNames = ['bke-causal-investigation', 'bke-decision-discipline',
@@ -46,7 +58,11 @@ assert.deepEqual(inventory.skills.map(s => s.name).sort(), expectedNames);
 const expectedTree = execFileSync('git', ['rev-parse', 'HEAD^{tree}'],
   {encoding: 'utf8'}).trim();
 assert.equal(inventory.tree_sha, expectedTree);
-let requestId = 4;
+assert.equal(primary.tree_sha, inventory.tree_sha);
+assert.deepEqual(primary.available_skills,
+  inventory.skills.map(({name, description, blob_sha}) => ({name, description, blob_sha})));
+assert.ok(primary.available_skills.every(x => typeof x.description === 'string' && x.description.length));
+let requestId = 5;
 for (const name of expectedNames) {
   const path = 'skills/' + name + '/SKILL.md';
   const expectedBlob = execFileSync('git', ['rev-parse', 'HEAD:' + path],
@@ -65,6 +81,22 @@ for (const name of expectedNames) {
   assert.equal(skill.tree_sha, expectedTree);
   assert.equal(Object.hasOwn(skill, 'content'), false);
   assert.equal(skill.skill_text, expectedText);
+  if (name !== 'bke-lean-engineering') assert.equal(skill.available_skills, undefined);
   console.log('Pinned MCP retrieval matches committed bytes: ' + name);
 }
-console.log('MCP tool discovery and actual GitHub-backed skill retrieval: PASS');
+assert.equal(primary.skill_text, execFileSync('git',
+  ['show', 'HEAD:skills/bke-lean-engineering/SKILL.md'], {encoding: 'utf8'}));
+for (const [args, error] of [
+  [{name:'nonexistent-skill'}, /not found/],
+  [{name:'bke-lean-engineering', blob_sha:'f'.repeat(40)}, /revision changed/],
+  // This is the real primary blob from verified main before the current change.
+  [{name:'bke-lean-engineering', blob_sha:'93af0e8cb0f21bb460fcd18c9ccf85c30630aecd'}, /revision changed/],
+  // A valid SHA belonging to another current skill cannot be used to spoof the primary.
+  [{name:'bke-lean-engineering', blob_sha:'45e7a79f4b8569b1c2f6f82cdb814086821f017c'}, /revision changed/],
+  [{name:'../secret'}, /Invalid/],
+]) {
+  const result = await rpc('tools/call', {name:'get_skill', arguments:args}, requestId++);
+  assert.equal(result.isError, true, JSON.stringify(result));
+  assert.match(result.content[0].text, error);
+}
+console.log('MCP tools/list annotations, primary-first index, pinned bytes, compatibility, and fail-closed reads: PASS');

@@ -33,12 +33,17 @@ export function buildSnapshot(root) {
     if (!match || !match[1].split(/\r?\n/).some(x => x === 'name: ' + name)) {
       throw new Error('Skill frontmatter does not match directory');
     }
+    const descriptionLine = match[1].split(/\r?\n/).find(x => x.startsWith('description: '));
+    if (!descriptionLine || !descriptionLine.slice('description: '.length).trim()) {
+      throw new Error('Skill requires a description for primary-first selection');
+    }
+    const description = descriptionLine.slice('description: '.length).trim();
     const blob_sha = createHash('sha1')
       .update('blob ' + bytes.length + '\0').update(bytes).digest('hex');
     if (git(root, 'rev-parse', 'HEAD:' + skillPath) !== blob_sha) {
       throw new Error('Skill bytes differ from committed Git source');
     }
-    skills.push({name, blob_sha, path: skillPath,
+    skills.push({name, description, blob_sha, path: skillPath,
       source: API + '/git/blobs/' + blob_sha, content});
   }
   skills.sort((a, b) => a.name.localeCompare(b.name));
