@@ -36,3 +36,70 @@ jobs:
             cat /tmp/bke-mcp-dev.log
             exit 1
           fi
+
+      # TEMPORARY RELEASE TRANSPORT ONLY — close this PR WITHOUT merging.
+      - name: Checkout exact owner-authorized main release source (independent checkout)
+        uses: actions/checkout@v4
+        with:
+          ref: d65d144377fd22be47a7246835a4d5b9de4b4e7d
+          path: release-source
+          persist-credentials: false
+      - name: Verify immutable source, all seven skill blobs, and existing public Worker configuration
+        run: |
+          set -euo pipefail
+          test "$(git -C release-source rev-parse HEAD)" = "d65d144377fd22be47a7246835a4d5b9de4b4e7d"
+          test "$(git -C release-source rev-parse HEAD^{tree})" = "9e6a3b97a5f2873e71be19c1df825cae8952d090"
+          test "$(git -C release-source status --porcelain)" = ""
+          test "$(git -C release-source rev-parse HEAD:skills/bke-causal-investigation/SKILL.md)" = "aecbdc9d0030265841a1c9d49c895d686f777c6b"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-decision-discipline/SKILL.md)" = "45e7a79f4b8569b1c2f6f82cdb814086821f017c"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-forge-bounded-execution/SKILL.md)" = "813199116212437fcc0820b98211a885eb33a62f"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-lean-engineering/SKILL.md)" = "badf3f24663805354fc8ac9c4e7ab5f7d6de7d27"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-owner-handoff/SKILL.md)" = "f48f576ba0cf2e898fa3aa691da799118c69de0f"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-security-review/SKILL.md)" = "6a0b043eb370d3ef87f81373be7801cd50a9e69d"
+          test "$(git -C release-source rev-parse HEAD:skills/bke-test-certification/SKILL.md)" = "ce5dafb51ea632e967b7d3f5091cd642d36757ed"
+          grep -Eq '"workers_dev"[[:space:]]*:[[:space:]]*true' release-source/wrangler.jsonc
+          grep -q '"name": "bke-skills-mcp"' release-source/wrangler.jsonc
+          grep -q '"compatibility_date": "2026-10-13"' release-source/wrangler.jsonc
+      - name: Certify and export verified exact-source Worker module (NO deployment)
+        working-directory: release-source
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build:catalog
+          npx wrangler deploy --dry-run --outdir /tmp/bke-skills-primary-first-release
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          import zlib from 'node:zlib';
+          const source="d65d144377fd22be47a7246835a4d5b9de4b4e7d";
+          const tree="9e6a3b97a5f2873e71be19c1df825cae8952d090";
+          const expected=Object.fromEntries([["bke-causal-investigation","aecbdc9d0030265841a1c9d49c895d686f777c6b"],["bke-decision-discipline","45e7a79f4b8569b1c2f6f82cdb814086821f017c"],["bke-forge-bounded-execution","813199116212437fcc0820b98211a885eb33a62f"],["bke-lean-engineering","badf3f24663805354fc8ac9c4e7ab5f7d6de7d27"],["bke-owner-handoff","f48f576ba0cf2e898fa3aa691da799118c69de0f"],["bke-security-review","6a0b043eb370d3ef87f81373be7801cd50a9e69d"],["bke-test-certification","ce5dafb51ea632e967b7d3f5091cd642d36757ed"]]);
+          const {snapshot}=await import('./src/catalog.snapshot.mjs');
+          if (snapshot.source_commit!==source || snapshot.tree_sha!==tree ||
+              snapshot.skills.length!==Object.keys(expected).length) throw Error('Wrong immutable release snapshot');
+          for (const item of snapshot.skills) {
+            if (expected[item.name]!==item.blob_sha ||
+                item.path!=='skills/'+item.name+'/SKILL.md' ||
+                typeof item.description!=='string' || !item.description.trim() ||
+                typeof item.content!=='string') throw Error('Unexpected skill metadata or bytes: '+item.name);
+          }
+          const dir='/tmp/bke-skills-primary-first-release';
+          const modules=fs.readdirSync(dir).filter(f=>f.endsWith('.js'));
+          if (modules.length!==1) throw Error('Expected exactly one JavaScript module');
+          const data=fs.readFileSync(path.join(dir,modules[0]));
+          for (const needle of [source, tree, ...Object.values(expected), 'available_skills', 'readOnlyHint']) {
+            if (!data.includes(Buffer.from(needle))) throw Error('Compiled module missing: '+needle);
+          }
+          const sha256=crypto.createHash('sha256').update(data).digest('hex');
+          const encoded=zlib.gzipSync(data,{level:9,mtime:0}).toString('base64');
+          console.log('BKE_RELEASE_COMMIT:'+source);
+          console.log('BKE_RELEASE_TREE:'+tree);
+          console.log('BKE_RELEASE_NAME:'+modules[0]);
+          console.log('BKE_RELEASE_SHA256:'+sha256);
+          console.log('BKE_RELEASE_BYTES:'+data.length);
+          for (let offset=0;offset<encoded.length;offset+=3000)
+            console.log('BKE_RELEASE_PART:'+offset+':'+encoded.slice(offset,offset+3000));
+          console.log('BKE_RELEASE_COMPLETE:'+encoded.length);
+          NODE
