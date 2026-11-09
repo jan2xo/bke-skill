@@ -14,6 +14,35 @@ description: Keep BKE engineering changes as small as safely possible. Use when 
 - One independent intent, one fresh PR from current `main`. Do not invent an issue, assignment, orchestrator seat, approval, credential, or live-send authority.
 - Before writing, check the actual task gate: approved issue/labels, named documentation files, frozen paths, changed-line cap, and required checks. **If a known gate will fail, record BLOCKED before creating a doomed PR.** Never bypass a gate.
 
+## Primary-first skill selection
+
+For substantive BKE engineering, begin with `get_skill({name: "bke-lean-engineering"})`. The unpinned initial primary read establishes this task's bundled `tree_sha`, primary `blob_sha`, and compact `available_skills` index. The primary read must return the complete primary Markdown, not summaries of every other skill. `list_skills` remains available to older clients but is not needed on the normal path.
+
+1. Read current owner instructions, the target repository's root `bke.md`, current `main`, and live task/PR/CI state. Identify the authorized result, acceptance boundary, and exact current head before acting.
+2. Inspect the returned existing-skills index. Choose the **smallest sufficient set** matching the task's actual responsibilities; multiple skills may be necessary, but **do not load all skills automatically**.
+3. Read each selected skill through `get_skill({name, blob_sha})` using that index's exact `blob_sha` **before performing the work it governs**. Keep the initial snapshot as the task's revision; if a pinned read rejects a stale revision, reconcile the changed snapshot before proceeding.
+4. Reassess selection only if the scope, evidence, or trust boundaries materially change. Guidance does not grant new task, merge, production, or security authority.
+
+**Selection rules:**
+
+- Substantive BKE engineering → `bke-lean-engineering` baseline.
+- Consequential scope, recovery, or policy decision → `bke-decision-discipline`.
+- Unexplained failure or conflicting evidence → `bke-causal-investigation`.
+- Verification planning or certification claim → `bke-test-certification`.
+- Material identity, authorization, secret, or privileged-operation change, or a requested security review → `bke-security-review`.
+- Completion, real blocker, owner decision, or phase transition → `bke-owner-handoff`.
+- **Explicitly owner-assigned FORGE session only** → `bke-forge-bounded-execution`. Never activate FORGE policy for Codex, Sol, or other agents by inference.
+
+## Short-session continuity
+
+For a short-lived execution session, choose a coherent slice of the authorized task. Commit recoverable work, use existing CI for long-running verification, and leave the exact run and next action when the session ends. On resumption, verify current state and continue the same task without repeating completed discovery.
+
+- A completed slice is **not** completion of the parent task.
+- Continue while useful authorized work remains and the invocation can act.
+- Checkpoints and queued CI are **not** automatic stopping conditions.
+- Reconcile changed heads and uncertain operations before continuing.
+- Never promise an unscheduled background continuation.
+
 ## The five-question filter
 
 Answer privately, briefly, before any code:

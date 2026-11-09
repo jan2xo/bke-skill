@@ -23,6 +23,12 @@ export async function getSkill(name, blobSha) {
   }
   // Avoid an inner JSON `content` field: ChatGPT MCP clients can discard that payload.
   // Keep the actual SKILL.md bytes intact, including for other MCP clients.
-  return {name: skill.name, blob_sha: skill.blob_sha, path: skill.path,
+  const result = {name: skill.name, blob_sha: skill.blob_sha, path: skill.path,
     source: skill.source, tree_sha: snapshot.tree_sha, skill_text: skill.content};
+  if (name === 'bke-lean-engineering') {
+    // Selection metadata comes from the same immutable snapshot as skill_text.
+    result.available_skills = snapshot.skills.map(({name, description, blob_sha}) =>
+      ({name, description, blob_sha}));
+  }
+  return result;
 }
