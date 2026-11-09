@@ -103,3 +103,69 @@ jobs:
             console.log('BKE_RELEASE_PART:'+offset+':'+encoded.slice(offset,offset+3000));
           console.log('BKE_RELEASE_COMPLETE:'+encoded.length);
           NODE
+
+      - name: LIVE MCP JSON-RPC read-only metadata and exact-source verification
+        working-directory: release-source
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {execFileSync} from 'node:child_process';
+          const endpoint='https://bke-skills-mcp.jan2xpagauisan.workers.dev/mcp';
+          let id=0;
+          async function rpc(method,params={}) {
+            const requestId=++id;
+            const response=await fetch(endpoint,{
+              method:'POST',headers:{
+                'content-type':'application/json',
+                'accept':'application/json, text/event-stream',
+                'MCP-Protocol-Version':'2025-11-25'
+              },
+              body:JSON.stringify({jsonrpc:'2.0',id:requestId,method,params}),
+              signal:AbortSignal.timeout(15000)
+            });
+            const raw=await response.text();
+            assert.equal(response.status,200,method+': HTTP '+response.status+' '+raw.slice(0,400));
+            const parsed=response.headers.get('content-type')?.includes('text/event-stream')
+              ?raw.split(/\r?\n/).filter(x=>x.startsWith('data: ')).map(x=>JSON.parse(x.slice(6))).find(x=>x.id===requestId)
+              :JSON.parse(raw);
+            assert.ok(parsed && !parsed.error,method+': invalid JSON-RPC response '+JSON.stringify(parsed?.error));
+            return parsed.result;
+          }
+          const init=await rpc('initialize',{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'bke-live-release-ci',version:'1.0.0'}});
+          assert.ok(init.protocolVersion);
+          const listing=await rpc('tools/list');
+          assert.deepEqual(listing.tools.map(x=>x.name).sort(),['get_skill','list_skills']);
+          const annotations={readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false};
+          for(const tool of listing.tools)assert.deepEqual(tool.annotations,annotations,tool.name+' incorrect read-only MCP annotations');
+          const initial=await rpc('tools/call',{name:'get_skill',arguments:{name:'bke-lean-engineering'}});
+          assert.ok(!initial.isError);
+          const primary=JSON.parse(initial.content[0].text);
+          const expectedTree=execFileSync('git',['rev-parse','HEAD^{tree}'],{encoding:'utf8'}).trim();
+          assert.equal(primary.tree_sha,expectedTree);
+          assert.equal(primary.skill_text,execFileSync('git',['show','HEAD:skills/bke-lean-engineering/SKILL.md'],{encoding:'utf8'}));
+          assert.equal(primary.available_skills?.length,7);
+          const legacy=await rpc('tools/call',{name:'list_skills',arguments:{}});
+          assert.ok(!legacy.isError);
+          const catalog=JSON.parse(legacy.content[0].text);
+          assert.equal(catalog.tree_sha,expectedTree);
+          assert.deepEqual(primary.available_skills,catalog.skills.map(({name,description,blob_sha})=>({name,description,blob_sha})));
+          for (const skill of primary.available_skills) {
+            const expectedBlob=execFileSync('git',['rev-parse','HEAD:skills/'+skill.name+'/SKILL.md'],{encoding:'utf8'}).trim();
+            assert.equal(skill.blob_sha,expectedBlob);
+            const read=await rpc('tools/call',{name:'get_skill',arguments:{name:skill.name,blob_sha:skill.blob_sha}});
+            assert.ok(!read.isError,skill.name);
+            const result=JSON.parse(read.content[0].text);
+            assert.equal(result.blob_sha,expectedBlob);
+            assert.equal(result.tree_sha,expectedTree);
+            assert.equal(result.skill_text,execFileSync('git',['show','HEAD:skills/'+skill.name+'/SKILL.md'],{encoding:'utf8'}));
+          }
+          for (const args of [
+            {name:'nonexistent-skill'},
+            {name:'bke-lean-engineering',blob_sha:'93af0e8cb0f21bb460fcd18c9ccf85c30630aecd'},
+            {name:'bke-lean-engineering',blob_sha:'f'.repeat(40)}
+          ]) {
+            const result=await rpc('tools/call',{name:'get_skill',arguments:args});
+            assert.equal(result.isError,true,JSON.stringify(args));
+          }
+          console.log('LIVE MCP initialize/tools/list annotations, primary-first index, seven exact pinned bytes, legacy list and negative cases: PASS');
+          NODE
