@@ -16,7 +16,7 @@ description: Keep BKE engineering changes as small as safely possible. Use when 
 
 ## Primary-first skill selection
 
-For substantive BKE engineering, begin with `get_skill({name: "bke-lean-engineering"})`. The unpinned initial primary read establishes this task's bundled `tree_sha`, primary `blob_sha`, and compact `available_skills` index. The primary read must return the complete primary Markdown, not summaries of every other skill. `list_skills` remains available to older clients but is not needed on the normal path.
+For substantive BKE engineering, begin with the distinct read-only `primary_skill({})` tool. The initial primary read establishes this task's bundled `tree_sha`, primary `blob_sha`, and compact `available_skills` index. The primary read must return the complete primary Markdown, not summaries of every other skill. `list_skills` remains available to older clients but is not needed on the normal path. The legacy `get_skill({name: "bke-lean-engineering"})` call remains compatible, but is **not** the normal primary entry point.
 
 1. Read current owner instructions, the target repository's root `bke.md`, current `main`, and live task/PR/CI state. Identify the authorized result, acceptance boundary, and exact current head before acting.
 2. Inspect the returned existing-skills index. Choose the **smallest sufficient set** matching the task's actual responsibilities; multiple skills may be necessary, but **do not load all skills automatically**.
