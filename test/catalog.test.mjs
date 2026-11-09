@@ -50,7 +50,7 @@ test('primary-first read carries exact bytes and a same-tree selection index', a
 
 test('primary guidance supports selective activation and short-session continuation', async () => {
   const {skill_text: text} = await getSkill(knownName);
-  for (const rule of ['bke-decision-discipline', 'bke-causal-investigation',
+  for (const rule of ['primary_skill({})', 'bke-decision-discipline', 'bke-causal-investigation',
     'bke-test-certification', 'bke-security-review', 'bke-owner-handoff',
     'bke-forge-bounded-execution', 'available_skills', 'blob_sha',
     'Codex', 'Sol', 'scope, evidence, or trust boundaries',
@@ -59,6 +59,7 @@ test('primary guidance supports selective activation and short-session continuat
   }
   assert.match(text, /do not load all skills automatically/i);
   assert.match(text, /Explicitly owner-assigned FORGE session only/);
+  assert.match(text, /legacy `get_skill\(\{name: "bke-lean-engineering"\}\)` call remains compatible/);
 });
 
 test('all seven published skills return committed bytes without request-time network fetch', async () => {
