@@ -34,20 +34,25 @@ const init = await rpc('initialize', {
 }, 1);
 assert.ok(init.protocolVersion);
 const listing = await rpc('tools/list', {}, 2);
-assert.deepEqual(listing.tools.map(x => x.name).sort(), ['get_skill', 'list_skills']);
+assert.deepEqual(listing.tools.map(x => x.name).sort(), ['get_skill', 'list_skills', 'primary_skill']);
 for (const tool of listing.tools) {
   assert.deepEqual(tool.annotations, {
     readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false,
   }, tool.name + ': incorrect actual tools/list hints');
 }
-// Primary first, without an extra list call or a supplied revision.
-const initial = await rpc('tools/call', {
-  name:'get_skill', arguments:{name:'bke-lean-engineering'},
-}, 3);
+// Distinct primary tool is the first read, without a list call or arguments.
+const initial = await rpc('tools/call', {name:'primary_skill', arguments:{}}, 3);
 assert.ok(!initial.isError, JSON.stringify(initial));
 const primary = JSON.parse(initial.content[0].text);
+assert.equal(primary.name, 'bke-lean-engineering');
 assert.ok(Array.isArray(primary.available_skills));
-const listed = await rpc('tools/call', {name:'list_skills',arguments:{}}, 4);
+// Preserve the previously published get_skill(primary) contract for existing callers.
+const oldPrimary = await rpc('tools/call', {
+  name:'get_skill', arguments:{name:'bke-lean-engineering'},
+}, 4);
+assert.ok(!oldPrimary.isError, JSON.stringify(oldPrimary));
+assert.deepEqual(JSON.parse(oldPrimary.content[0].text), primary);
+const listed = await rpc('tools/call', {name:'list_skills',arguments:{}}, 5);
 assert.ok(!listed.isError, JSON.stringify(listed));
 const inventory = JSON.parse(listed.content[0].text);
 const expectedNames = ['bke-causal-investigation', 'bke-decision-discipline',
@@ -62,7 +67,7 @@ assert.equal(primary.tree_sha, inventory.tree_sha);
 assert.deepEqual(primary.available_skills,
   inventory.skills.map(({name, description, blob_sha}) => ({name, description, blob_sha})));
 assert.ok(primary.available_skills.every(x => typeof x.description === 'string' && x.description.length));
-let requestId = 5;
+let requestId = 6;
 for (const name of expectedNames) {
   const path = 'skills/' + name + '/SKILL.md';
   const expectedBlob = execFileSync('git', ['rev-parse', 'HEAD:' + path],
@@ -99,4 +104,4 @@ for (const [args, error] of [
   assert.equal(result.isError, true, JSON.stringify(result));
   assert.match(result.content[0].text, error);
 }
-console.log('MCP tools/list annotations, primary-first index, pinned bytes, compatibility, and fail-closed reads: PASS');
+console.log('Three read-only MCP tools, distinct primary-first index, pinned bytes, legacy callers, and fail-closed reads: PASS');
