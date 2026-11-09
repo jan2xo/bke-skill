@@ -22,6 +22,17 @@ function createServer() {
       return {isError: true, content: [{type: 'text', text: String(error.message)}]};
     }
   });
+  // Distinct primary entry point; reuses the same immutable catalog read as legacy callers.
+  server.registerTool('primary_skill', {
+    description: 'Read the foundational BKE lean-engineering skill and its same-snapshot index of available skills. Use this first for BKE engineering.',
+    annotations: READ_ONLY_ANNOTATIONS,
+  }, async () => {
+    try {
+      return {content: [{type: 'text', text: JSON.stringify(await getSkill('bke-lean-engineering'))}]};
+    } catch (error) {
+      return {isError: true, content: [{type: 'text', text: String(error.message)}]};
+    }
+  });
   server.registerTool('get_skill', {
     description: 'Read one BKE SKILL.md in this release, optionally pinned to its listed Git blob SHA.',
     annotations: READ_ONLY_ANNOTATIONS,
